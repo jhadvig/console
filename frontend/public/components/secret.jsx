@@ -2,7 +2,7 @@ import * as _ from 'lodash-es';
 import * as React from 'react';
 
 import { ColHead, DetailsPage, List, ListHeader, ListPage, ResourceRow } from './factory';
-import ConfigMapAndSecretData from './configmap-and-secret-data';
+import { ConfigMapAndSecretData, ToggleSecretData } from './configmap-and-secret-data';
 import { Cog, Heading, ResourceCog, ResourceLink, ResourceSummary, detailsPage, navFactory } from './utils';
 import { fromNow } from './utils/datetime';
 import { registerTemplate } from '../yaml-templates';
@@ -50,8 +50,7 @@ const SecretDetails = ({obj: secret}) => {
       <ResourceSummary resource={secret} showPodSelector={false} showNodeSelector={false} />
     </div>
     <div className="co-m-pane__body">
-      <Heading text="Data" />
-      <ConfigMapAndSecretData data={secret.data} decode={window.atob} />
+      <ToggleSecretData data={secret.data} type={secret.type} decode={window.atob} />
     </div>
   </React.Fragment>;
 };
