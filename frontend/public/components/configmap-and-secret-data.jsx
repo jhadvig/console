@@ -49,7 +49,7 @@ export class ToggleSecretData extends React.PureComponent {
   render() {
   	return <React.Fragment>
 			<Heading text="Data" >
-				<a className="btn btn-link" onClick={this.toggleSecret}>Reveal Secret</a>
+				<a className="btn btn-link" onClick={this.toggleSecret}>{this.state.showSecret ? 'Hide Secret' : 'Reveal Secret'}</a>
 			</Heading>
 			<SecretData data={this.props.data} type={this.props.type} decode={this.props.decode} showSecret={this.state.showSecret} />
   	</React.Fragment>
