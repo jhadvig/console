@@ -3,7 +3,7 @@ import * as React from 'react';
 
 import { ColHead, DetailsPage, List, ListHeader, ListPage, ResourceRow } from './factory';
 import { SecretData } from './configmap-and-secret-data';
-import { Cog, Heading, ResourceCog, ResourceLink, ResourceSummary, detailsPage, navFactory } from './utils';
+import { Cog, ResourceCog, ResourceLink, ResourceSummary, detailsPage, navFactory } from './utils';
 import { fromNow } from './utils/datetime';
 import { registerTemplate } from '../yaml-templates';
 
