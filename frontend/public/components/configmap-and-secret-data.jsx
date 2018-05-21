@@ -3,26 +3,28 @@ import * as React from 'react';
 import * as PropTypes from 'prop-types';
 import { Heading } from './utils';
 
-export const MaskedData = ({data}) => {
+export const MaskedData = () => {
   return <React.Fragment>
     <span className="sr-only">value hidden</span>
     <span aria-hidden="true">&bull;&bull;&bull;&bull;&bull;</span>
   </React.Fragment>;
 }
 
+export const CopyButton = ({value}) => {
+  return <React.Fragment>
+    <span className="input-group-btn">
+      <button className="btn btn-default" type="button"><i className="fa fa-clipboard" aria-hidden="true"></i></button>
+    </span>
+  </React.Fragment>;
+}
+
 export const SharedData = ({data, showSecret}) => {
   const dl = [];
   Object.keys(data || {}).sort().forEach(k => {
+    const value = _.isNil(showSecret) ? data[k] : window.atob(data[k]); 
     dl.push(<dt key={`${k}-k`}>{k}</dt>);
-    if (_.isNil(showSecret)) {
-      dl.push(<dd key={`${k}-v`}><pre className="co-pre-wrap">{data[k]}</pre></dd>);
-    } else {
-      dl.push(<dd key={`${k}-v`}><pre className="co-pre-wrap">{showSecret ? window.atob(data[k]) : <MaskedData />}</pre></dd>);
-    }
-
-    // const value = _.isNil(showSecret) ? window.atob(data[k]) : data[k] 
-    // dl.push(<dt key={`${k}-k`}>{k}</dt>);
-    // dl.push(<dd key={`${k}-v`}><pre className="co-pre-wrap">{showSecret ? <MaskedData /> : value }</pre></dd>);
+    dl.push(<dd key={`${k}-v`}><div className="input-group"><input className="form-control" value={showSecret ? value : "*****"} disabled/><CopyButton /></div></dd>);
+    // dl.push(<dd key={`${k}-v`}><pre className="co-pre-wrap">{showSecret ? value : <MaskedData /> }<CopyButton /></pre></dd>);
   });
   return <dl>{dl}</dl>;
 };
@@ -30,6 +32,10 @@ export const SharedData = ({data, showSecret}) => {
 export const ConfigMapData = ({data}) => {
   return <SharedData data={data}/>;
 };
+
+export const Icon = ({showSecret}) => {
+  return showSecret ? <span className="show-values"><i className="fa fa-eye-slash"></i></span> : <span className="hide-values"><i className="fa fa-eye"></i></span>
+}
 
 export class SecretData extends React.PureComponent {
   constructor(props) {
@@ -45,10 +51,9 @@ export class SecretData extends React.PureComponent {
   render() {
     const { data } = this.props;
     const { showSecret } = this.state;
-    const dl = [];
     return <React.Fragment>
       <Heading text="Data">
-        <button className="btn btn-link" type="button" onClick={this.toggleSecret}>{showSecret ? 'Hide Values' : 'Reveal Values'}</button>
+        <button className="btn btn-link" type="button" onClick={this.toggleSecret}><Icon showSecret={showSecret}/> {showSecret ? 'Hide Values' : 'Reveal Values'}</button>
       </Heading>
       <SharedData data={data} showSecret={showSecret}/>
     </React.Fragment>;
