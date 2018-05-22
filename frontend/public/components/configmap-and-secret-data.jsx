@@ -13,9 +13,37 @@ export const MaskedData = () => {
 }
 
 export const ConsoleCopyToClipboard = ({value, visibleValue}) => {
+
+  isMultiline(str) {
+    if (!str) {
+      return false;
+    }
+
+    var index = str.search(/\r|\n/);
+    if (index === -1) {
+      return false;
+    }
+
+    // Ignore a final, trailing newline?
+    if (ignoreTrailing) {
+      return index !== (str.length - 1);
+    }
+
+    return true;
+  }
+
+  const singleLine = <React.Fragment>
+    <div className="input-group">
+      <input className="form-control co-pre-wrap clipboard" value={visibleValue ? visibleValue : value} disabled/>
+      <CopyToClipboard text={value}>
+        <span className="input-group-btn"><button className="btn btn-default" type="button"><i className="fa fa-clipboard" aria-hidden="true"></i></button></span>
+      </CopyToClipboard>
+    </div>
+  </React.Fragment>;
+
   return <React.Fragment>
     <div className="input-group">
-      <input className="form-control co-pre-wrap" value={visibleValue ? visibleValue : value} disabled/>
+      <input className="form-control co-pre-wrap clipboard" value={visibleValue ? visibleValue : value} disabled/>
       <CopyToClipboard text={value}>
         <span className="input-group-btn"><button className="btn btn-default" type="button"><i className="fa fa-clipboard" aria-hidden="true"></i></button></span>
       </CopyToClipboard>
