@@ -15,8 +15,12 @@ export const MaskedData = () => {
 export const SharedData = ({data, showSecret}) => {
   const dl = [];
   Object.keys(data || {}).sort().forEach(k => {
-    const value = _.isNil(showSecret) ? data[k] : window.atob(data[k]);
-    const visibleValue = showSecret ? value : <MaskedData /> ;
+    if (_.isNil(showSecret)) {
+      const value = visibleValue = data[k];
+    } else {
+      const value = window.atob(data[k]);
+      const visibleValue = showSecret ? value : <MaskedData /> ;
+    }
     dl.push(<dt key={`${k}-k`}>{k}</dt>);
     dl.push(<dd key={`${k}-v`}><ConsoleCopyToClipboard value={value} visibleValue={visibleValue}/></dd>);
   });

@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import {CopyToClipboard} from 'react-copy-to-clipboard';
+// import { Tooltip } from './utils/tooltip';
 
 export const ConsoleCopyToClipboard = ({value, visibleValue}) => {
   return <React.Fragment>
