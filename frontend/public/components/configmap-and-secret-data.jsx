@@ -3,7 +3,7 @@ import * as React from 'react';
 import * as PropTypes from 'prop-types';
 import { Heading } from './utils';
 
-import {CopyToClipboard} from 'react-copy-to-clipboard';
+import {ConsoleCopyToClipboard} from './copy-to-clipboard';
 
 export const MaskedData = () => {
   return <React.Fragment>
@@ -12,52 +12,13 @@ export const MaskedData = () => {
   </React.Fragment>;
 }
 
-export const ConsoleCopyToClipboard = ({value, visibleValue}) => {
-
-  const isMultiline = str => {
-    if (!str) {
-      return false;
-    }
-    var index = str.search(/\r|\n/);
-    if (index === -1) {
-      return false;
-    }
-    // Ignore a final, trailing newline?
-    // if (ignoreTrailing) {
-    //   return index !== (str.length - 1);
-    // }
-    return true;
-  }
-
-  const multiLine = <React.Fragment>
-    <div className="copy-to-clipboard">
-      <pre className="co-pre-wrap">{visibleValue}</pre>
-      <CopyToClipboard text={value}>
-        <button className="btn btn-default copy-btn" type="button"><i className="fa fa-clipboard" aria-hidden="true"></i></button>
-      </CopyToClipboard>
-    </div>
-  </React.Fragment>;
-
-  const singleLine = <React.Fragment>
-    <div className="copy-to-clipboard input-group">
-      <input className="form-control co-pre-wrap clipboard" value={visibleValue ? visibleValue : value} disabled/>
-      <CopyToClipboard text={value}>
-        <span className="input-group-btn"><button className="btn btn-default" type="button"><i className="fa fa-clipboard" aria-hidden="true"></i></button></span>
-      </CopyToClipboard>
-    </div>
-  </React.Fragment>;
-
-  return isMultiline(visibleValue) ? multiLine : singleLine;
-}
-
 export const SharedData = ({data, showSecret}) => {
   const dl = [];
   Object.keys(data || {}).sort().forEach(k => {
     const value = _.isNil(showSecret) ? data[k] : window.atob(data[k]);
-    const visibleValue = showSecret ? value : "*****" ;
+    const visibleValue = showSecret ? value : <MaskedData /> ;
     dl.push(<dt key={`${k}-k`}>{k}</dt>);
     dl.push(<dd key={`${k}-v`}><ConsoleCopyToClipboard value={value} visibleValue={visibleValue}/></dd>);
-    // dl.push(<dd key={`${k}-v`}><pre className="co-pre-wrap">{showSecret ? value : <MaskedData /> }<CopyButton /></pre></dd>);
   });
   return <dl>{dl}</dl>;
 };
