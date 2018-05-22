@@ -14,26 +14,32 @@ export const MaskedData = () => {
 
 export const ConsoleCopyToClipboard = ({value, visibleValue}) => {
 
-  isMultiline(str) {
+  const isMultiline = str => {
     if (!str) {
       return false;
     }
-
     var index = str.search(/\r|\n/);
     if (index === -1) {
       return false;
     }
-
     // Ignore a final, trailing newline?
-    if (ignoreTrailing) {
-      return index !== (str.length - 1);
-    }
-
+    // if (ignoreTrailing) {
+    //   return index !== (str.length - 1);
+    // }
     return true;
   }
 
+  const multiLine = <React.Fragment>
+    <div className="copy-to-clipboard">
+      <pre className="co-pre-wrap">{visibleValue}</pre>
+      <CopyToClipboard text={value}>
+        <button className="btn btn-default copy-btn" type="button"><i className="fa fa-clipboard" aria-hidden="true"></i></button>
+      </CopyToClipboard>
+    </div>
+  </React.Fragment>;
+
   const singleLine = <React.Fragment>
-    <div className="input-group">
+    <div className="copy-to-clipboard input-group">
       <input className="form-control co-pre-wrap clipboard" value={visibleValue ? visibleValue : value} disabled/>
       <CopyToClipboard text={value}>
         <span className="input-group-btn"><button className="btn btn-default" type="button"><i className="fa fa-clipboard" aria-hidden="true"></i></button></span>
@@ -41,23 +47,7 @@ export const ConsoleCopyToClipboard = ({value, visibleValue}) => {
     </div>
   </React.Fragment>;
 
-  return <React.Fragment>
-    <div className="input-group">
-      <input className="form-control co-pre-wrap clipboard" value={visibleValue ? visibleValue : value} disabled/>
-      <CopyToClipboard text={value}>
-        <span className="input-group-btn"><button className="btn btn-default" type="button"><i className="fa fa-clipboard" aria-hidden="true"></i></button></span>
-      </CopyToClipboard>
-    </div>
-  </React.Fragment>;
-
-  // return <React.Fragment>
-  //   <div className="input-group">
-  //     <input className="form-control" value={value} disabled/>
-  //     <span className="input-group-btn">
-  //       <button className="btn btn-default" type="button"><i className="fa fa-clipboard" aria-hidden="true"></i></button>
-  //     </span>
-  //   </div>
-  // </React.Fragment>;
+  return isMultiline(visibleValue) ? multiLine : singleLine;
 }
 
 export const SharedData = ({data, showSecret}) => {
