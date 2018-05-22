@@ -3,24 +3,22 @@ import * as React from 'react';
 import * as PropTypes from 'prop-types';
 import { Heading, CopyToClipboard } from './utils';
 
-export const MaskedData = () => {
+const MaskedData = () => {
   return <React.Fragment>
     <span className="sr-only">value hidden</span>
     <span aria-hidden="true">&bull;&bull;&bull;&bull;&bull;</span>
   </React.Fragment>;
 };
 
+const Icon = ({showSecret}) => {
+  return showSecret ? <span className="show-values"><i className="fa fa-eye-slash" aria-hidden="true"></i></span> : <span className="hide-values"><i className="fa fa-eye" aria-hidden="true"></i></span>;
+};
+
 export const KeyValueData = ({data, showSecret}) => {
   const dl = [];
   Object.keys(data || {}).sort().forEach(k => {
-    let value = '';
-    let visibleValue = '';
-    if (_.isNil(showSecret)) {
-      value = visibleValue = data[k];
-    } else {
-      value = window.atob(data[k]);
-      visibleValue = showSecret ? value : <MaskedData /> ;
-    }
+    const value = window.atob(data[k]);
+    const visibleValue = showSecret ? value : <MaskedData /> ;
     dl.push(<dt key={`${k}-k`}>{k}</dt>);
     dl.push(<dd key={`${k}-v`}><CopyToClipboard value={value} visibleValue={visibleValue}/></dd>);
   });
@@ -28,11 +26,13 @@ export const KeyValueData = ({data, showSecret}) => {
 };
 
 export const ConfigMapData = ({data}) => {
-  return <KeyValueData data={data}/>;
-};
-
-export const Icon = ({showSecret}) => {
-  return showSecret ? <span className="show-values"><i className="fa fa-eye-slash"></i></span> : <span className="hide-values"><i className="fa fa-eye"></i></span>;
+  const dl = [];
+  Object.keys(data || {}).sort().forEach(k => {
+    const value = data[k];
+    dl.push(<dt key={`${k}-k`}>{k}</dt>);
+    dl.push(<dd key={`${k}-v`}><CopyToClipboard value={value} /></dd>);
+  });
+  return <dl>{dl}</dl>;
 };
 
 export class SecretData extends React.PureComponent {
