@@ -99,6 +99,12 @@ const listFilters = {
 
     let status = routeStatus(route);
     return statuses.selected.has(status) || !_.includes(statuses.all, status);
+  },
+  'secret-type': (types, secret) => {
+    if (!types || !types.selected || !types.selected.size) {
+      return true;
+    }
+    return types.selected.has(secret.type) || !_.includes(types.all, secret.type);
   }
 };
 

@@ -58,7 +58,35 @@ const SecretDetails = ({obj: secret}) => {
 const SecretsList = props => <List {...props} Header={SecretHeader} Row={SecretRow} />;
 SecretsList.displayName = 'SecretsList';
 
-const SecretsPage = props => <ListPage ListComponent={SecretsList} canCreate={true} {...props} />;
+const secretType = (secret) => {
+  const { type } = secret;
+  if (!_.includes(filters[0].selected, type)) {
+    filters[0].selected.push(type);
+    filters[0].items.push({
+      'id': type,
+      'title': _.startsWith(type, 'kubernetes.io') ? _.replace(type, 'kubernetes.io', 'k8s.io') : type
+    });
+  }
+  return type;
+};
+
+const filters = [{
+  type: 'secret-type',
+  selected: ['kubernetes.io/service-account-token', 'kubernetes.io/dockercfg', 'kubernetes.io/dockerconfigjson', 'kubernetes.io/basic-auth', 'kubernetes.io/ssh-auth', 'kubernetes.io/tls', 'Opaque'],
+  reducer: secretType,
+  items: [
+    {id: 'kubernetes.io/service-account-token', title: 'k8s.io/service-account-token'},
+    {id: 'kubernetes.io/dockercfg', title: 'k8s.io/dockercfg'},
+    {id: 'kubernetes.io/dockerconfigjson', title: 'k8s.io/dockerconfigjson'},
+    {id: 'kubernetes.io/basic-auth', title: 'k8s.io/basic-auth'},
+    {id: 'kubernetes.io/ssh-auth', title: 'k8s.io/ssh-auth'},
+    {id: 'kubernetes.io/tls', title: 'k8s.io/tls'},
+    {id: 'Opaque', title: 'Opaque'}
+  ],
+}];
+
+const SecretsPage = props => <ListPage ListComponent={SecretsList} rowFilters={filters} canCreate={true} {...props} />;
+
 const SecretsDetailsPage = props => <DetailsPage
   {...props}
   menuActions={menuActions}
