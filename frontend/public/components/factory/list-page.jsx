@@ -162,7 +162,7 @@ export const FireMan_ = connect(null, {filterList: k8sActions.filterList})(
           </Link>;
         } else if (createProps.items) {
           createLink = <div className="co-m-primary-action">
-            <Dropdown noButton={true} className="btn btn-primary" id="yaml-create" title={createButtonText} items={createProps.items} onChange={(name) => history.push(createProps.createLink(name))} />
+            <Dropdown noButton={true} className="btn btn-primary" id="item-create" title={createButtonText} items={createProps.items} onChange={(name) => history.push(createProps.createLink(name))} />
           </div>;
         } else {
           createLink = <div className="co-m-primary-action">
@@ -246,7 +246,20 @@ export const ListPage = props => {
       href = namespaced ? `/k8s/ns/${namespace || 'default'}/${ref}/new` : `/k8s/cluster/${ref}/new`;
     } catch (unused) { /**/ }
   }
-  const createProps = createHandler ? {onClick: createHandler} : {to: href};
+  // const createProps = createHandler ? {onClick: createHandler} : {to: href};
+  let createProps;
+  if (_.isFunction(createHandler)) {
+    createProps = {onClick: createHandler};
+  } else if (_.isObject(createHandler)) {
+    createProps = {
+      items: createHandler,
+      createLink(param) {
+        return param === 'yaml' ? href : `${href}/${param}`;
+      }
+    };
+  } else {
+    createProps = {to: href};
+  }
   const resources = [{ kind, name, namespaced, selector, fieldSelector, filters, limit }];
 
   if (!namespaced && namespace) {
