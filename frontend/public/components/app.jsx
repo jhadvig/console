@@ -25,7 +25,7 @@ import { Nav } from './nav';
 import { ProfilePage } from './profile';
 import { ResourceDetailsPage, ResourceListPage } from './resource-list';
 import { CopyRoleBinding, CreateRoleBinding, EditRoleBinding, EditRulePage } from './RBAC';
-import { CreateSecret } from './secret';
+import { CreateSecret } from './secrets/create-secret';
 import { StartGuidePage } from './start-guide';
 import { SearchPage } from './search';
 import { history, AsyncComponent, Loading } from './utils';
