@@ -4,7 +4,6 @@ import { Helmet } from 'react-helmet';
 import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
 
-
 // import { Cog, ResourceCog, ResourceLink, ResourceSummary, detailsPage, navFactory } from './utils';
 import { ButtonBar, Cog, Dropdown, Firehose, history, kindObj, LoadingInline, MsgBox,
   OverflowYFade, ResourceCog, ResourceName, ResourceLink, ResourceSummary, detailsPage, navFactory,
@@ -25,10 +24,10 @@ const BaseEditSecret = connect(null, {setActiveNamespace: UIActions.setActiveNam
   class BaseEditSecret_ extends SafetyFirst {
     constructor (props) {
       super(props)
-      const {kind, metadata } = this.props.fixed
+      const {kind, namespace } = this.props
       this.state = {
         kind: kind,
-        namespace: metadata.namespace,
+        namespace: namespace,
         data: secretsInitialMetadata,
         inProgress: false,
       };
@@ -44,13 +43,13 @@ const BaseEditSecret = connect(null, {setActiveNamespace: UIActions.setActiveNam
     }
     save (e) {
       e.preventDefault();
-      const {kind, metadata } = this.props.fixed;
+      const {kind, namespace } = this.props;
       console.log("SAVE!!!")
     }
     render () {
-      const {kind, metadata} = this.props.fixed;
+      const {kind, namespace} = this.props;
       const title = `${this.props.titleVerb} ${kindObj(kind).label}`;
-      const {fixed, saveButtonText} = this.props;
+      // const {fixed, saveButtonText} = this.props;
 
       return <div className="co-m-pane__body">
         <Helmet>
@@ -64,7 +63,7 @@ const BaseEditSecret = connect(null, {setActiveNamespace: UIActions.setActiveNam
 
           <div className="separator"></div>
           <ButtonBar errorMessage={this.state.error} inProgress={this.state.inProgress}>
-            <button type="submit" className="btn btn-primary" id="yaml-create">{saveButtonText || 'Create Secret'}</button>
+            <button type="submit" className="btn btn-primary" id="create-secret">Create Secret</button>
             <Link to={formatNamespacedRouteForResource('secrets')} className="btn btn-default">Cancel</Link>
           </ButtonBar>
         </form>
@@ -74,13 +73,7 @@ const BaseEditSecret = connect(null, {setActiveNamespace: UIActions.setActiveNam
 );
 
 export const CreateSecret = ({match: {params}}) => <BaseEditSecret
-  metadata={{
-    namespace: getActiveNamespace(),
-  }}
-  fixed={{
-    kind: 'Secret',
-    metadata: {namespace: params.ns}
-  }}
-  isCreate={true}
+  metadata={{namespace: params.ns || getActiveNamespace()}}
+  kind='Secret'
   titleVerb="Create"
 />;

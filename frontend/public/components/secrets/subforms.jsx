@@ -3,7 +3,6 @@ import * as React from 'react';
 import { Helmet } from 'react-helmet';
 import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
-import * as PropTypes from 'prop-types';
 
 import * as ace from 'brace';
 import AceEditor from 'react-ace';
@@ -80,81 +79,6 @@ export class SecretDataForm extends React.PureComponent {
         <div className="modal-body__field">
           <input className="form-control" type="text" onChange={this.changeSubjectName} value={this.state.secretName} required id="test--subject-name" />
           <p className="help-block text-muted">Unique name of the new secret.</p>
-        </div>
-      </div>
-      {element}
-    </React.Fragment>;
-  }
-}
-
-export class SecretAuthenticationTypeSubform extends React.PureComponent {
-  constructor (props) {
-    super(props);
-    this.state = {
-      authenticationType: 'kubernetes.io/basic-auth',
-      authenticationData: {},
-    }
-    this.changeAuthenticationType = this.changeAuthenticationType.bind(this);
-  }
-  changeAuthenticationType(event) {
-    this.setState({
-      authenticationType: event.target.value
-    }, () => this.props.callbackForMetadata(this.state));
-  }
-  componentDidUpdate(prevProps, prevState) {
-    if (_.isEqual(prevProps.secretType, this.props.secretType)) {
-      return;
-    }
-    let type;
-    switch(this.props.secretType) {
-      case 'source':
-        type = 'kubernetes.io/basic-auth'
-        break;
-      case 'image':
-        type = 'kubernetes.io/dockerconfigjson'
-        break;
-    }
-    this.setState({ authenticationType: type });
-  }
-  secretsAuthInputCallback = (secretsData) => {
-    this.setState({
-      authenticationData: secretsData
-    }, () => this.props.callbackForMetadata(this.state));
-  }
-  render () {
-    let options = []
-    switch(this.props.secretType) {
-      case "source":
-        options.push(<option key='kubernetes.io/basic-auth' value='kubernetes.io/basic-auth'>Basic Authentication</option>)
-        options.push(<option key='kubernetes.io/ssh-auth' value='kubernetes.io/ssh-auth'>SSH Key</option>)
-        break;
-      case "image":
-        options.push(<option key='kubernetes.io/dockerconfigjson' value='kubernetes.io/dockerconfigjson'>Image Registry Credentials</option>)
-        options.push(<option key='kubernetes.io/dockercfg' value='kubernetes.io/dockercfg'>Configuration File</option>)
-        break;
-    }
-    let element = null;
-    switch(this.state.authenticationType) {
-      case 'kubernetes.io/basic-auth':
-        element = <SecretBasicAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
-        break;
-      case 'kubernetes.io/ssh-auth':
-        element = <SecretSSHAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
-        break;
-      case 'kubernetes.io/dockerconfigjson':
-        element = <RegistryCredentialsAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
-        break;
-      case 'kubernetes.io/dockercfg':
-        element = <RegistryConfigFileAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
-        break;
-    }
-    return <React.Fragment>
-      <div className="form-group">
-        <label className="control-label">Authentication Type</label>
-        <div className="modal-body__field">
-          <select onChange={this.changeAuthenticationType} value={this.state.authenticationType} className="form-control">
-            {options}
-          </select>
         </div>
       </div>
       {element}
@@ -337,12 +261,94 @@ export class RegistryCredentialsAuthenticationSubform extends React.PureComponen
   }
 }
 
+
+export class SecretAuthenticationTypeSubform extends React.PureComponent {
+  constructor (props) {
+    super(props);
+    this.state = {
+      authenticationType: 'kubernetes.io/basic-auth',
+      authenticationData: {},
+    }
+    this.changeAuthenticationType = this.changeAuthenticationType.bind(this);
+  }
+  changeAuthenticationType(event) {
+    this.setState({
+      authenticationType: event.target.value
+    }, () => this.props.callbackForMetadata(this.state));
+  }
+  componentDidUpdate(prevProps, prevState) {
+    if (_.isEqual(prevProps.secretType, this.props.secretType)) {
+      return;
+    }
+    let type;
+    switch(this.props.secretType) {
+      case 'source':
+        type = 'kubernetes.io/basic-auth'
+        break;
+      case 'image':
+        type = 'kubernetes.io/dockerconfigjson'
+        break;
+      case 'generic':
+        type = 'Opaque'
+        break;
+    }
+    this.setState({ authenticationType: type });
+  }
+  secretsAuthInputCallback = (secretsData) => {
+    this.setState({
+      authenticationData: secretsData
+    }, () => this.props.callbackForMetadata(this.state));
+  }
+  render () {
+    let options = []
+    switch(this.props.secretType) {
+      case "source":
+        options.push(<option key='kubernetes.io/basic-auth' value='kubernetes.io/basic-auth'>Basic Authentication</option>)
+        options.push(<option key='kubernetes.io/ssh-auth' value='kubernetes.io/ssh-auth'>SSH Key</option>)
+        break;
+      case "image":
+        options.push(<option key='kubernetes.io/dockerconfigjson' value='kubernetes.io/dockerconfigjson'>Image Registry Credentials</option>)
+        options.push(<option key='kubernetes.io/dockercfg' value='kubernetes.io/dockercfg'>Configuration File</option>)
+        break;
+    }
+
+
+    let element = null;
+    switch(this.state.authenticationType) {
+      case 'kubernetes.io/basic-auth':
+        element = <SecretBasicAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
+        break;
+      case 'kubernetes.io/ssh-auth':
+        element = <SecretSSHAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
+        break;
+      case 'kubernetes.io/dockerconfigjson':
+        element = <RegistryCredentialsAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
+        break;
+      case 'kubernetes.io/dockercfg':
+        element = <RegistryConfigFileAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
+        break;
+    }
+    return <React.Fragment>
+      <div className="form-group">
+        <label className="control-label">Authentication Type</label>
+        <div className="modal-body__field">
+          <select onChange={this.changeAuthenticationType} value={this.state.authenticationType} className="form-control">
+            {options}
+          </select>
+        </div>
+      </div>
+      {element}
+    </React.Fragment>;
+
+  }
+}
+
 export class GenericSecretSubform extends React.PureComponent {
   constructor (props) {
     super(props);
     this.state = {
       authenticationType: 'Opaque',
-      authenticationData: [['','']],
+      authenticationData: [[]],
     }
     this._updateValues = this._updateValues.bind(this);
   }
@@ -391,12 +397,4 @@ export class WebhookSecretSubform extends React.PureComponent {
       </div>
     </div>
   }
-}
-
-SecretAuthenticationTypeSubform.propTypes = {
-  secretType: PropTypes.string
-}
-
-SecretAuthenticationTypeSubform.defaultProps = {
-  secretType: 'source'
 }
