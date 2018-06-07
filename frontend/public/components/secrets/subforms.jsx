@@ -21,87 +21,40 @@ import { SafetyFirst } from './safety-first';
 import { registerTemplate } from '../yaml-templates';
 import { NameValueEditor, NAME, VALUE } from '../utils/name-value-editor';
 
-export class SecretDataForm extends React.PureComponent {
+export class SourceSecretSubform extends React.PureComponent {
   constructor (props) {
     super(props);
-    this.state = secretsInitialMetadata;
-    this.changeSecretType = this.changeSecretType.bind(this);
-    this.changeSubjectName = this.changeSubjectName.bind(this);
-  }
-  changeSecretType (event) {
-    this.setState({
-      secretType: event.target.value
-    }, () => this.props.callbackForMetadata(this.state));
-  }
-  changeSubjectName (event) {
-    this.setState({
-      secretName: event.target.value
-    }, () => this.props.callbackForMetadata(this.state));
-  }
-  _updateValues(values) {
-    this.setState({
-      authenticationData: values.nameValuePairs
-    });
-  }
-  secretsAuthdataCallback = (secretsData) => {
-    this.setState({
-      secretData: secretsData
-    }, () => this.props.callbackForMetadata(this.state));
-  }
-  render () {
-    let element = null;
-    switch(this.state.secretType) {
-      case 'source':
-      case 'image':
-        element = <SecretAuthenticationTypeSubform secretType={this.state.secretType} callbackForMetadata={this.secretsAuthdataCallback.bind(this)} />
-        break;
-      case 'generic':
-        element = <GenericSecretSubform callbackForMetadata={this.secretsAuthdataCallback.bind(this)} />
-        break;
-      case 'webhook':
-        element = <WebhookSecretSubform callbackForMetadata={this.secretsAuthdataCallback.bind(this)} />
-        break;
-    }
-    return <React.Fragment>
-      <div className="form-group">
-        <label className="control-label">Secret Type</label>
-        <div className="modal-body__field">
-          <select onChange={this.changeSecretType} value={this.state.secretType} className="form-control">
-            <option value='source'>Source Secret</option>
-            <option value='image'>Image Secret</option>
-            <option value='generic'>Generic Secret</option>
-            <option value='webhook'>Wehook Secret</option>
-          </select>
-        </div>
-      </div>      
-      <div className="form-group">
-        <label className="control-label">Secret Name</label>
-        <div className="modal-body__field">
-          <input className="form-control" type="text" onChange={this.changeSubjectName} value={this.state.secretName} required id="test--subject-name" />
-          <p className="help-block text-muted">Unique name of the new secret.</p>
-        </div>
-      </div>
-      {element}
-    </React.Fragment>;
-  }
-}
-
-export class SecretBasicAuthenticationSubform extends React.PureComponent {
-  constructor (props) {
-    super(props);
-    this.state = {
-      username: '',
-      password: ''
-    }
+    this.state = this.state = {
+      authenticationType: 'kubernetes.io/basic-auth',
+      authenticationData: {
+        username: '',
+        password: '',
+      },
+    };
     this.changeData = this.changeData.bind(this);
+    this.changeAuthenticationType = this.changeAuthenticationType.bind(this);
+    this.changeAceData = _.debounce(this.changeAceData.bind(this), 300);
+  }
+  changeAuthenticationType(event) {
+    this.setState({
+      authenticationType: event.target.value
+    }, () => this.props.callbackForMetadata(this.state));
   }
   changeData(event) {
+    const updatedData = _.assign(this.state.authenticationData, {[event.target.name]: event.target.value})
     this.setState({
-      [event.target.name]: event.target.value
-    }, () => this.props.callbackForInputData(this.state));
+      authenticationData: updatedData
+    }, () => this.props.callbackForMetadata(this.state));
+  }
+  changeAceData(value) {
+    this.setState({
+      authenticationData: {
+        privateKey: value
+      }
+    }, () => this.props.callbackForMetadata(this.state));
   }
   render () {
-    return <React.Fragment>   
+    const basicAuthSubform = <React.Fragment>
       <div className="form-group">
         <label className="control-label" htmlFor="username">Username</label>
         <div className="modal-body__field">
@@ -117,37 +70,21 @@ export class SecretBasicAuthenticationSubform extends React.PureComponent {
         </div>
       </div>
     </React.Fragment>;
-  }
-}
 
-export class SecretSSHAuthenticationSubform extends React.PureComponent {
-  constructor (props) {
-    super(props);
-    this.state = {
-      privateKey: '',
-    }
-    this.changeData = _.debounce(this.changeData.bind(this), 300);
-  }
-  changeData(value) {
-    this.setState({
-      privateKey: value
-    }, () => this.props.callbackForInputData(this.state));
-  }
-  render () {
-    return <div className="form-group">
+    const sshAuthSubform = <div className="form-group">
       <label className="control-label" htmlFor="private-key">SSH Private Key</label>
       <div className="modal-body__field">
         <AceEditor
           mode="text"
           theme="github"
-          onChange={this.changeData}
+          onChange={this.changeAceData}
           name="private-key-editor"
           showPrintMargin={true}
           showGutter={true}
           highlightActiveLine={true}
           height="300px"
           width="100%"
-          value={this.state.privateKey}
+          value={this.state.authenticationData.privateKey}
           editorProps={{ $blockScrolling: true }}
           setOptions={{
             enableSnippets: false,
@@ -157,21 +94,53 @@ export class SecretSSHAuthenticationSubform extends React.PureComponent {
         />
         <p className="help-block text-muted">Private SSH key file for Git authentication.</p>
       </div>
-    </div>
+    </div>;
+
+    return <React.Fragment>
+      <div className="form-group">
+        <label className="control-label">Authentication Type</label>
+        <div className="modal-body__field">
+          <select onChange={this.changeAuthenticationType} value={this.state.authenticationType} className="form-control">
+            <option key='kubernetes.io/basic-auth' value='kubernetes.io/basic-auth'>Basic Authentication</option>
+            <option key='kubernetes.io/ssh-auth' value='kubernetes.io/ssh-auth'>SSH Key</option>
+          </select>
+        </div>
+      </div>
+      { this.state.authenticationType === 'kubernetes.io/basic-auth' ? basicAuthSubform : sshAuthSubform }
+    </React.Fragment>
   }
 }
 
-export class RegistryConfigFileAuthenticationSubform extends React.PureComponent {
+
+export class ImageSecretSubform extends React.PureComponent {
   constructor (props) {
     super(props);
     this.state = {
-      configuration: '',
-      isValidJSON: true
+      authenticationType: 'kubernetes.io/dockerconfigjson',
+      authenticationData: {
+        serverAddress: '',
+        username: '',
+        password: '',
+        email: '',
+      },
+      isValidJSON: true,
     }
-    // this.changeData = this.changeData.bind(this);
-    this.changeData = _.debounce(this.changeData.bind(this), 300);
+    this.changeData = this.changeData.bind(this);
+    this.changeAuthenticationType = this.changeAuthenticationType.bind(this);
+    this.changeAceData = _.debounce(this.changeAceData.bind(this), 300);
   }
-  changeData(value) {
+  changeAuthenticationType(event) {
+    this.setState({
+      authenticationType: event.target.value
+    }, () => this.props.callbackForMetadata(this.state));
+  }
+  changeData(event) {
+    const updatedData = _.assign(this.state.authenticationData, {[event.target.name]: event.target.value})
+    this.setState({
+      authenticationData: updatedData
+    }, () => this.props.callbackForMetadata(this.state));
+  }
+  changeAceData(value) {
     try {
       JSON.parse(value);
       this.setState({ isValidJSON: true})
@@ -179,26 +148,56 @@ export class RegistryConfigFileAuthenticationSubform extends React.PureComponent
       this.setState({ isValidJSON: false})
     }
     this.setState({
-      configuration: value
-    }, () => this.props.callbackForInputData(this.state));
+      authenticationData: {
+        configuration: value
+      }
+    }, () => this.props.callbackForMetadata(this.state));
   }
+
   render () {
-    return <React.Fragment>
+    const registryCredentials = <React.Fragment>
+      <div className="form-group">
+        <label className="control-label" htmlFor="username">Image Registry Server Address</label>
+        <div className="modal-body__field">
+          <input className="form-control" id="serverAddress" type="text" name="serverAddress" onChange={this.changeData.bind(this)} value={this.state.data} required/>
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="control-label" htmlFor="username">Username</label>
+        <div className="modal-body__field">
+          <input className="form-control" id="username" type="text" name="username" onChange={this.changeData.bind(this)} value={this.state.data} required/>
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="control-label" htmlFor="password">Password</label>
+        <div className="modal-body__field">
+          <input className="form-control" id="password" type="password" name="password" onChange={this.changeData.bind(this)} value={this.state.data} required/>
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="control-label" htmlFor="password">Email</label>
+        <div className="modal-body__field">
+          <input className="form-control" id="email" type="email" name="email" onChange={this.changeData.bind(this)} value={this.state.data} required/>
+        </div>
+      </div>
+    </React.Fragment>
+
+    const registryConfig = <React.Fragment>
       <div className="form-group">
         <label className="control-label" htmlFor="private-key">Configuration File</label>
         <div className="modal-body__field">
           <AceEditor
             mode="json"
             theme="github"
-            onChange={this.changeData}
+            onChange={this.changeAceData}
             name="private-key-editor"
             showPrintMargin={true}
             showGutter={true}
             highlightActiveLine={true}
             height="300px"
             width="100%"
-            value={this.state.configuration}
-            editorProps={{ $blockScrolling: true }}
+            value={this.state.authenticationData.configuration}
+            editorProps={{ $blockScrolling: Infinity }}
             setOptions={{
               enableSnippets: false,
               showLineNumbers: true,
@@ -210,136 +209,19 @@ export class RegistryConfigFileAuthenticationSubform extends React.PureComponent
       </div>
       {!this.state.isValidJSON && <p className="text-warning">Configuration file should be in JSON format.</p>}
     </React.Fragment>
-  }
-}
 
-
-
-export class RegistryCredentialsAuthenticationSubform extends React.PureComponent {
-  constructor (props) {
-    super(props);
-    this.state = {
-      serverAddress: '',
-      username: '',
-      password: '',
-      email: '',
-    }
-    this.changeData = this.changeData.bind(this);
-  }
-  changeData(event) {
-    this.setState({
-      [event.target.name]: event.target.value
-    }, () => this.props.callbackForInputData(this.state));
-  }
-  render () {
-    return <React.Fragment>
-      <div className="form-group">
-        <label className="control-label" htmlFor="username">Image Registry Server Address</label>
-        <div className="modal-body__field">
-          <input className="form-control" id="serverAddress" type="text" name="serverAddress" onChange={this.changeData} value={this.state.data} required/>
-        </div>
-      </div>
-      <div className="form-group">
-        <label className="control-label" htmlFor="username">Username</label>
-        <div className="modal-body__field">
-          <input className="form-control" id="username" type="text" name="username" onChange={this.changeData} value={this.state.data} required/>
-        </div>
-      </div>
-      <div className="form-group">
-        <label className="control-label" htmlFor="password">Password</label>
-        <div className="modal-body__field">
-          <input className="form-control" id="password" type="password" name="password" onChange={this.changeData} value={this.state.data} required/>
-        </div>
-      </div>
-      <div className="form-group">
-        <label className="control-label" htmlFor="password">Email</label>
-        <div className="modal-body__field">
-          <input className="form-control" id="email" type="email" name="email" onChange={this.changeData} value={this.state.data} required/>
-        </div>
-      </div>
-    </React.Fragment>;
-  }
-}
-
-
-export class SecretAuthenticationTypeSubform extends React.PureComponent {
-  constructor (props) {
-    super(props);
-    this.state = {
-      authenticationType: 'kubernetes.io/basic-auth',
-      authenticationData: {},
-    }
-    this.changeAuthenticationType = this.changeAuthenticationType.bind(this);
-  }
-  changeAuthenticationType(event) {
-    this.setState({
-      authenticationType: event.target.value
-    }, () => this.props.callbackForMetadata(this.state));
-  }
-  componentDidUpdate(prevProps, prevState) {
-    if (_.isEqual(prevProps.secretType, this.props.secretType)) {
-      return;
-    }
-    let type;
-    switch(this.props.secretType) {
-      case 'source':
-        type = 'kubernetes.io/basic-auth'
-        break;
-      case 'image':
-        type = 'kubernetes.io/dockerconfigjson'
-        break;
-      case 'generic':
-        type = 'Opaque'
-        break;
-    }
-    this.setState({ authenticationType: type });
-  }
-  secretsAuthInputCallback = (secretsData) => {
-    this.setState({
-      authenticationData: secretsData
-    }, () => this.props.callbackForMetadata(this.state));
-  }
-  render () {
-    let options = []
-    switch(this.props.secretType) {
-      case "source":
-        options.push(<option key='kubernetes.io/basic-auth' value='kubernetes.io/basic-auth'>Basic Authentication</option>)
-        options.push(<option key='kubernetes.io/ssh-auth' value='kubernetes.io/ssh-auth'>SSH Key</option>)
-        break;
-      case "image":
-        options.push(<option key='kubernetes.io/dockerconfigjson' value='kubernetes.io/dockerconfigjson'>Image Registry Credentials</option>)
-        options.push(<option key='kubernetes.io/dockercfg' value='kubernetes.io/dockercfg'>Configuration File</option>)
-        break;
-    }
-
-
-    let element = null;
-    switch(this.state.authenticationType) {
-      case 'kubernetes.io/basic-auth':
-        element = <SecretBasicAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
-        break;
-      case 'kubernetes.io/ssh-auth':
-        element = <SecretSSHAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
-        break;
-      case 'kubernetes.io/dockerconfigjson':
-        element = <RegistryCredentialsAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
-        break;
-      case 'kubernetes.io/dockercfg':
-        element = <RegistryConfigFileAuthenticationSubform callbackForInputData={this.secretsAuthInputCallback.bind(this)}/>
-        break;
-    }
     return <React.Fragment>
       <div className="form-group">
         <label className="control-label">Authentication Type</label>
         <div className="modal-body__field">
           <select onChange={this.changeAuthenticationType} value={this.state.authenticationType} className="form-control">
-            {options}
+            <option key='kubernetes.io/dockerconfigjson' value='kubernetes.io/dockerconfigjson'>Image Registry Credentials</option>
+            <option key='kubernetes.io/dockercfg' value='kubernetes.io/dockercfg'>Configuration File</option>
           </select>
         </div>
       </div>
-      {element}
+      { this.state.authenticationType === 'kubernetes.io/dockerconfigjson' ? registryCredentials : registryConfig }
     </React.Fragment>;
-
   }
 }
 
