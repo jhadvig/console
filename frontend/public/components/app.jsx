@@ -25,7 +25,7 @@ import { Nav } from './nav';
 import { ProfilePage } from './profile';
 import { ResourceDetailsPage, ResourceListPage } from './resource-list';
 import { CopyRoleBinding, CreateRoleBinding, EditRoleBinding, EditRulePage } from './RBAC';
-import { CreateSecret } from './secrets/create-secret';
+import { CreateSecret, EditSecret, CopySecret } from './secrets/create-secret';
 import { StartGuidePage } from './start-guide';
 import { SearchPage } from './search';
 import { history, AsyncComponent, Loading } from './utils';
@@ -178,6 +178,10 @@ class App extends React.PureComponent {
 
           <Route path="/k8s/cluster/secrets/new" exact component={props => <CreateSecret {...props} kind="Secret" />} />
           <Route path="/k8s/ns/:ns/secrets/new" exact component={props => <CreateSecret {...props} kind="Secret" />} />
+          <Route path="/k8s/cluster/secrets/:name/edit" exact component={props => <EditSecret {...props} kind="Secret" />} />
+          <Route path="/k8s/ns/:ns/secrets/:name/edit" exact component={props => <EditSecret {...props} kind="Secret" />} />
+          <Route path="/k8s/cluster/secrets/:name/copy" exact component={props => <CopySecret {...props} kind="Secret" />} />
+          <Route path="/k8s/ns/:ns/secrets/:name/copy" exact component={props => <CopySecret {...props} kind="Secret" />} />
 
           <Route path="/k8s/cluster/rolebindings/new" exact component={props => <CreateRoleBinding {...props} kind="RoleBinding" />} />
           <Route path="/k8s/ns/:ns/rolebindings/new" exact component={props => <CreateRoleBinding {...props} kind="RoleBinding" />} />

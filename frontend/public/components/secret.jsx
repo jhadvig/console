@@ -13,6 +13,7 @@ import { ButtonBar, Cog, Dropdown, Firehose, history, kindObj, LoadingInline, Ms
 import { getActiveNamespace, formatNamespacedRouteForResource, UIActions } from './../ui/ui-actions';
 import { fromNow } from './utils/datetime';
 import { SafetyFirst } from './safety-first';
+import { k8sPatch } from '../module/k8s';
 import { registerTemplate } from '../yaml-templates';
 import { CreateSecret } from './secrets/create-secret'
 import { NameValueEditor, NAME, VALUE } from './utils/name-value-editor';
@@ -26,7 +27,17 @@ data:
   username: YWRtaW4=
   password: MWYyZDFlMmU2N2Rm`);
 
-const menuActions = Cog.factory.common;
+const menuActions = [
+    (kind, obj) => ({
+      label: `Duplicate ${kind.label}...`,
+      href: `${resourceObjPath(obj, kind.kind)}/copy`,
+    }),
+    (kind, obj) => ({
+      label: `Edit ${kind.label}...`,
+      href: `${resourceObjPath(obj, kind.kind)}/edit`,
+    }),
+    Cog.factory.Delete,
+  ];
 
 const SecretHeader = props => <ListHeader>
   <ColHead {...props} className="col-md-3 col-sm-4 col-xs-6" sortField="metadata.name">Name</ColHead>
