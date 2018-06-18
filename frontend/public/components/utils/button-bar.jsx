@@ -21,12 +21,12 @@ const InfoMessage = ({message}) => <div className="alert alert-info"><span class
 // NOTE: DO NOT use <a> elements within a ButtonBar.
 // They don't support the disabled attribute, and therefore
 // can't be disabled during a pending promise/request.
-export const ButtonBar = ({children, className, errorMessage, infoMessage, inProgress}) => {
-  return <div className={classNames(className, 'co-m-btn-bar')}>
-    {errorMessage && <ErrorMessage message={errorMessage} />}
-    {injectDisabled(children, inProgress)}
-    {inProgress && <LoadingInline />}
-    {infoMessage && <InfoMessage message={infoMessage} />}
+export const ButtonBar = (props) => {
+  return <div className={classNames(props.className, 'co-m-btn-bar')}>
+    {props.errorMessage && <ErrorMessage message={props.errorMessage} />}
+    {injectDisabled(props.children, props.inProgress)}
+    {props.inProgress && <LoadingInline />}
+    {props.infoMessage && <InfoMessage message={props.infoMessage} />}
   </div>;
 };
 
@@ -35,4 +35,5 @@ ButtonBar.propTypes = {
   errorMessage: PropTypes.string,
   infoMessage: PropTypes.string,
   inProgress: PropTypes.bool.isRequired,
+  className: PropTypes.string,
 };

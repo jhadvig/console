@@ -16,16 +16,19 @@ data:
   username: YWRtaW4=
   password: MWYyZDFlMmU2N2Rm`);
 
+const editInYaml = obj => {
+  if (obj.type === 'Opaque' && _.has(obj.data, 'WebHookSecretKey') && Object.keys(obj.data).length === 1) {
+    return false;
+  }
+  return true;
+};
+
 const menuActions = [
   Cog.factory.ModifyLabels,
   Cog.factory.ModifyAnnotations,
   (kind, obj) => ({
-    label: `Duplicate ${kind.label}...`,
-    href: `${resourceObjPath(obj, kind.kind)}/copy`,
-  }),
-  (kind, obj) => ({
     label: `Edit ${kind.label}...`,
-    href: `${resourceObjPath(obj, kind.kind)}/edit`,
+    href: editInYaml(obj) ? `${resourceObjPath(obj, kind.kind)}/edit-yaml` : `${resourceObjPath(obj, kind.kind)}/edit`,
   }),
   Cog.factory.Delete,
 ];
@@ -87,15 +90,23 @@ const filters = [{
   ],
 }];
 
-const createItems = {
-  // source: 'Create Source Secret',
-  // image: 'Create Image Pull Secret',
-  // generic: 'Create Key/Value Secret',
-  webhook: 'Webhook Secret',
-  yaml: 'Secret from YAML',
+const SecretsPage = props => {
+  const createItems = {
+    // source: 'Create Source Secret',
+    // image: 'Create Image Pull Secret',
+    // generic: 'Create Key/Value Secret',
+    webhook: 'Webhook Secret',
+    yaml: 'Secret from YAML',
+  };
+
+  const createProps = {
+    items: createItems,
+    createLink: (type) => `/k8s/ns/${props.namespace}/secrets/new/${type !== 'yaml' ? type : ''}`
+  };
+
+  return <ListPage ListComponent={SecretsList} canCreate={true} rowFilters={filters} createButtonText="Create" createProps={createProps} {...props} />;
 };
 
-const SecretsPage = props => <ListPage ListComponent={SecretsList} canCreate={true} rowFilters={filters} createButtonText="Create" createHandler={createItems} {...props} />;
 
 const SecretsDetailsPage = props => <DetailsPage
   {...props}

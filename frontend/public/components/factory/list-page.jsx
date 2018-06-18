@@ -236,6 +236,7 @@ FireMan_.propTypes = {
 /** @type {React.SFC<{ListComponent: React.ComponentType<any>, kind: string, namespace?: string, filterLabel?: string, title?: string, showTitle?: boolean, dropdownFilters?: any[], rowFilters?: any[], selector?: string, fieldSelector?: string, canCreate?: boolean, createButtonText?: string, createProps?: any, fake?: boolean}>} */
 export const ListPage = props => {
   const {createButtonText, createHandler, filterLabel, kind, namespace, selector, name, fieldSelector, filters, limit, showTitle = true, fake} = props;
+  let { createProps } = props;
   const ko = kindObj(kind);
   const {labelPlural, plural, namespaced, label} = ko;
   const title = props.title || labelPlural;
@@ -246,20 +247,8 @@ export const ListPage = props => {
       href = namespaced ? `/k8s/ns/${namespace || 'default'}/${ref}/new` : `/k8s/cluster/${ref}/new`;
     } catch (unused) { /**/ }
   }
-  // const createProps = createHandler ? {onClick: createHandler} : {to: href};
-  let createProps;
-  if (_.isFunction(createHandler)) {
-    createProps = {onClick: createHandler};
-  } else if (_.isObject(createHandler)) {
-    createProps = {
-      items: createHandler,
-      createLink(param) {
-        return param === 'yaml' ? href : `${href}/${param}`;
-      }
-    };
-  } else {
-    createProps = {to: href};
-  }
+
+  createProps = createProps || (createHandler ? {onClick: createHandler} : {to: href});
   const resources = [{ kind, name, namespaced, selector, fieldSelector, filters, limit }];
 
   if (!namespaced && namespace) {
