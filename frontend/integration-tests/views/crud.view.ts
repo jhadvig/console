@@ -59,7 +59,7 @@ export const activeRowFilters = $$('.row-filter--box__active');
 export const statusMessageTitle = $('.cos-status-box__title');
 export const statusMessageDetail = $('.cos-status-box__detail');
 
-export const actionsDropdown = $('.btn--actions').$('button');
+export const actionsDropdown = $('.btn--dropdown');
 export const actionsDropdownMenu = $('.btn--actions').$$('.dropdown-menu').first();
 
 export const resourceTitle = $('#resource-title');

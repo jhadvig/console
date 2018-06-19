@@ -14,9 +14,12 @@ describe('Basic console test', () => {
   });
 
   it('logs into console if necessary', async() => {
+    console.log(appHost);
     await browser.get(appHost);
 
     const {BRIDGE_AUTH_USERNAME, BRIDGE_AUTH_PASSWORD} = process.env;
+    console.log(BRIDGE_AUTH_USERNAME);
+    console.log(BRIDGE_AUTH_PASSWORD);
     if (BRIDGE_AUTH_USERNAME && BRIDGE_AUTH_PASSWORD) {
       await browser.wait(until.visibilityOf(loginView.nameInput), BROWSER_TIMEOUT);
       await loginView.nameInput.sendKeys(BRIDGE_AUTH_USERNAME);
@@ -24,7 +27,6 @@ describe('Basic console test', () => {
       await loginView.submitButton.click();
       await browser.wait(until.visibilityOf($('#header-logo')), BROWSER_TIMEOUT);
     }
-
     expect(browser.getCurrentUrl()).toContain(appHost);
   });
 

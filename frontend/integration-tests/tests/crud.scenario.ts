@@ -17,25 +17,25 @@ describe('Kubernetes resource CRUD operations', () => {
   const testLabel = 'automatedTestName';
   const leakedResources = new Set<string>();
   const k8sObjs = OrderedMap<string, {kind: string, namespaced?: boolean}>()
-    .set('pods', {kind: 'Pod'})
-    .set('services', {kind: 'Service'})
-    .set('serviceaccounts', {kind: 'ServiceAccount'})
-    .set('secrets', {kind: 'Secret'})
-    .set('configmaps', {kind: 'ConfigMap'})
-    .set('persistentvolumes', {kind: 'PersistentVolume', namespaced: false})
-    .set('storageclasses', {kind: 'StorageClass', namespaced: false})
-    .set('ingresses', {kind: 'Ingress'})
-    .set('cronjobs', {kind: 'CronJob'})
-    .set('jobs', {kind: 'Job'})
-    .set('daemonsets', {kind: 'DaemonSet'})
-    .set('deployments', {kind: 'Deployment'})
-    .set('replicasets', {kind: 'ReplicaSet'})
-    .set('replicationcontrollers', {kind: 'ReplicationController'})
-    .set('persistentvolumeclaims', {kind: 'PersistentVolumeClaim'})
-    .set('statefulsets', {kind: 'StatefulSet'})
-    .set('resourcequotas', {kind: 'ResourceQuota'})
-    .set('horizontalpodautoscalers', {kind: 'HorizontalPodAutoscaler'})
-    .set('networkpolicies', {kind: 'NetworkPolicy'})
+    // .set('pods', {kind: 'Pod'})
+    // .set('services', {kind: 'Service'})
+    // .set('serviceaccounts', {kind: 'ServiceAccount'})
+    // .set('secrets', {kind: 'Secret'})
+    // .set('configmaps', {kind: 'ConfigMap'})
+    // .set('persistentvolumes', {kind: 'PersistentVolume', namespaced: false})
+    // .set('storageclasses', {kind: 'StorageClass', namespaced: false})
+    // .set('ingresses', {kind: 'Ingress'})
+    // .set('cronjobs', {kind: 'CronJob'})
+    // .set('jobs', {kind: 'Job'})
+    // .set('daemonsets', {kind: 'DaemonSet'})
+    // .set('deployments', {kind: 'Deployment'})
+    // .set('replicasets', {kind: 'ReplicaSet'})
+    // .set('replicationcontrollers', {kind: 'ReplicationController'})
+    // .set('persistentvolumeclaims', {kind: 'PersistentVolumeClaim'})
+    // .set('statefulsets', {kind: 'StatefulSet'})
+    // .set('resourcequotas', {kind: 'ResourceQuota'})
+    // .set('horizontalpodautoscalers', {kind: 'HorizontalPodAutoscaler'})
+    // .set('networkpolicies', {kind: 'NetworkPolicy'})
     .set('roles', {kind: 'Role'});
   const openshiftObjs = OrderedMap<string, {kind: string, namespaced?: boolean}>()
     .set('deploymentconfigs', {kind: 'DeploymentConfig'})
@@ -104,7 +104,6 @@ describe('Kubernetes resource CRUD operations', () => {
 
       it('displays detail view for new resource instance', async() => {
         await browser.wait(until.presenceOf(crudView.actionsDropdown));
-
         expect(browser.getCurrentUrl()).toContain(`/${testName}`);
         expect(crudView.resourceTitle.getText()).toEqual(testName);
       });
@@ -112,9 +111,11 @@ describe('Kubernetes resource CRUD operations', () => {
       it('search view displays created resource instance', async() => {
         await browser.get(`${appHost}/search/${namespaced ? `ns/${testName}` : 'all-namespaces'}?kind=${kind}&q=${testLabel}%3d${testName}`);
         await crudView.isLoaded();
+        console.log(`${appHost}/search/${namespaced ? `ns/${testName}` : 'all-namespaces'}?kind=${kind}&q=${testLabel}%3d${testName}`);
         await crudView.rowForName(testName).element(by.linkText(testName)).click();
+        console.log("11111111111");
         await browser.wait(until.urlContains(`/${testName}`));
-
+        console.log("22222222222");
         if (resource !== 'roles'){
           expect(crudView.resourceTitle.getText()).toEqual(testName);
         }
@@ -122,6 +123,8 @@ describe('Kubernetes resource CRUD operations', () => {
 
       it('deletes the resource instance', async() => {
         await browser.get(`${appHost}${namespaced ? `/k8s/ns/${testName}` : '/k8s/cluster'}/${resource}`);
+        console.log(namespaced);
+        console.log(`${appHost}${namespaced ? `/k8s/ns/${testName}` : '/k8s/cluster'}/${resource}`);
         await crudView.isLoaded();
         await crudView.deleteRow(kind)(testName);
 

@@ -118,7 +118,7 @@ export const LogoImage = connectToFlags(FLAGS.OPENSHIFT)((props: FlagsProps) => 
   }
 
   return <div className="co-masthead__logo">
-    <Link to="/" className="co-masthead__logo-link"><img src={logoImg} alt={logoAlt} /></Link>
+    <Link to="/" className="co-masthead__logo-link"><img src={logoImg} id="header-logo" alt={logoAlt} /></Link>
   </div>;
 });
 
