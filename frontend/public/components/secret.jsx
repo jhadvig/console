@@ -90,9 +90,9 @@ const filters = [{
 
 const SecretsPage = props => {
   const createItems = {
-    // source: 'Create Source Secret',
     // image: 'Create Image Pull Secret',
     // generic: 'Create Key/Value Secret',
+    source: 'Source Secret',
     webhook: 'Webhook Secret',
     yaml: 'Secret from YAML',
   };

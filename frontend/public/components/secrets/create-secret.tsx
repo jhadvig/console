@@ -11,13 +11,27 @@ import { getActiveNamespace, formatNamespacedRouteForResource, UIActions } from 
 import { SafetyFirst } from '../safety-first';
 import { WebHookSecretKey } from '../secret';
 
-export enum SecretTypes {
-  webhook = 'webhook',
+enum SecretTypeAbstraction {
   generic = 'generic',
+  source = 'source',
+  webhook = 'webhook',
 }
 
+enum SecretType {
+  basicAuth = 'kubernetes.io/basic-auth',
+  sshAuth = 'kubernetes.io/ssh-auth',
+  opaque = 'Opaque'
+}
+
+const determineDefaultSecretType = (typeAbstraction) => {
+  if (typeAbstraction === 'source'){
+    return SecretType.basicAuth;
+  }
+  return SecretType.opaque
+};
+
 const determineSecretTypeAbstraction = (data) => {
-  return _.has(data, WebHookSecretKey) ? SecretTypes.webhook : SecretTypes.generic;
+  return _.has(data, WebHookSecretKey) ? SecretTypeAbstraction.webhook : SecretTypeAbstraction.generic;
 };
 
 class BaseEditSecret_ extends SafetyFirst<BaseEditSecretProps_, BaseEditSecretState_> {
@@ -25,6 +39,8 @@ class BaseEditSecret_ extends SafetyFirst<BaseEditSecretProps_, BaseEditSecretSt
     super(props);
     const existingObj = _.pick(props.obj, ['metadata', 'type']);
     const existingData = _.get(props.obj, 'data');
+    const secretTypeAbstraction = this.props.secretTypeAbstraction || determineSecretTypeAbstraction(existingData)
+    const defaultSecretType = determineDefaultSecretType(secretTypeAbstraction)
     const secret = _.defaultsDeep({}, props.fixed, existingObj, {
       apiVersion: 'v1',
       data: {},
@@ -32,14 +48,14 @@ class BaseEditSecret_ extends SafetyFirst<BaseEditSecretProps_, BaseEditSecretSt
       metadata: {
         name: '',
       },
-      type: 'Opaque',
+      type: defaultSecretType,
     });
 
     this.state = {
-      secretType: this.props.secretType || determineSecretTypeAbstraction(existingData),
+      secretTypeAbstraction: secretTypeAbstraction,
       secret: secret,
       inProgress: false,
-      type: secret.type,
+      type: defaultSecretType,
       stringData: _.mapValues(existingData, window.atob),
     };
     this.onDataChanged = this.onDataChanged.bind(this);
@@ -47,7 +63,10 @@ class BaseEditSecret_ extends SafetyFirst<BaseEditSecretProps_, BaseEditSecretSt
     this.save = this.save.bind(this);
   }
   onDataChanged (secretsData) {
-    this.setState({stringData: {...secretsData}});
+    this.setState({
+      stringData: {...secretsData.stringData}, 
+      type: secretsData.authenticationType,
+    });
   }
   onNameChanged (event) {
     let secret = {...this.state.secret};
@@ -72,11 +91,19 @@ class BaseEditSecret_ extends SafetyFirst<BaseEditSecretProps_, BaseEditSecretSt
     );
   }
   render () {
-    const title = `${this.props.titleVerb} ${_.upperFirst(this.state.secretType)} Secret`;
+    const title = `${this.props.titleVerb} ${_.upperFirst(this.state.secretTypeAbstraction)} Secret`;
     const { saveButtonText } = this.props;
 
-    const explanation = 'Webhook secrets allow you to authenticate a webhook trigger.';
-    const subform = <WebHookSecretSubform onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData} />;
+    let explanation = null;
+    let subform = null;
+
+    if (this.state.secretTypeAbstraction === 'webhook') {
+      explanation = 'Webhook secrets allow you to authenticate a webhook trigger.';
+      subform = <WebHookSecretSubform onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData} />;
+    } else {
+      explanation = 'Source secrets allow you to authenticate against the SCM server.';
+      subform = <SourceSecretSubform onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData} />;
+    }
 
     return <div className="co-m-pane__body">
       <Helmet>
@@ -120,7 +147,7 @@ export const CreateSecret = ({match: {params}}) => {
   return <BaseEditSecret
     fixed={{ metadata: {namespace: params.ns} }}
     metadata={{ namespace: getActiveNamespace() }}
-    secretType={params.type}
+    secretTypeAbstraction={params.type}
     titleVerb="Create"
     isCreate={true}
   />;
@@ -139,25 +166,30 @@ const generateSecret = () => {
 class WebHookSecretSubform extends React.Component<WebHookSecretSubformProps, WebHookSecretSubformState> {
   constructor(props) {
     super(props);
-    this.state = {WebHookSecretKey: this.props.stringData.WebHookSecretKey || ''};
+    this.state = {
+      stringData: {
+        WebHookSecretKey: this.props.stringData.WebHookSecretKey || ''
+      },
+      authenticationType: SecretType.opaque,
+    };
     this.changeWebHookSecretkey = this.changeWebHookSecretkey.bind(this);
     this.generateWebHookSecret = this.generateWebHookSecret.bind(this);
   }
   changeWebHookSecretkey(event) {
     this.setState({
-      WebHookSecretKey: event.target.value
+      stringData: { WebHookSecretKey: event.target.value }
     }, () => this.props.onChange(this.state));
   }
   generateWebHookSecret() {
     this.setState({
-      WebHookSecretKey: generateSecret()
+      stringData: { WebHookSecretKey: generateSecret() }
     }, () => this.props.onChange(this.state));
   }
   render () {
     return <div className="form-group">
       <label className="control-label" htmlFor="webhook-secret-key">Webhook Secret Key</label>
       <div className="input-group">
-        <input className="form-control" id="webhook-secret-key" type="text" name="webhookSecretKey" onChange={this.changeWebHookSecretkey} value={this.state.WebHookSecretKey} required/>
+        <input className="form-control" id="webhook-secret-key" type="text" name="webhookSecretKey" onChange={this.changeWebHookSecretkey} value={this.state.stringData.WebHookSecretKey} required/>
         <span className="input-group-btn">
           <button type="button" onClick={this.generateWebHookSecret} className="btn btn-default">Generate</button>
         </span>
@@ -167,11 +199,78 @@ class WebHookSecretSubform extends React.Component<WebHookSecretSubformProps, We
   }
 }
 
+class SourceSecretSubform extends React.Component<SourceSecretSubformProps, SourceSecretSubformState> {
+  constructor (props) {
+    super(props);
+    this.state = this.state = {
+      authenticationType: SecretType.basicAuth,
+      stringData: {
+        username: '',
+        password: '',
+      },
+    };
+    this.changeData = this.changeData.bind(this);
+    this.changeAuthenticationType = this.changeAuthenticationType.bind(this);
+    this.changeAceData = _.debounce(this.changeAceData.bind(this), 300);
+  }
+  changeAuthenticationType(event) {
+    this.setState({
+      authenticationType: event.target.value
+    }, () => this.props.onChange(this.state));
+  }
+  changeData(event) {
+    const updatedData = _.assign(this.state.stringData, {[event.target.name]: event.target.value})
+    this.setState({
+      stringData: updatedData
+    }, () => this.props.onChange(this.state));
+  }
+  changeAceData(value) {
+    this.setState({
+      stringData: {
+        privateKey: value
+      }
+    }, () => this.props.onChange(this.state));
+  }
+  render () {
+    const basicAuthSubform = <React.Fragment>
+      <div className="form-group">
+        <label className="control-label" htmlFor="username">Username</label>
+        <div className="modal-body__field">
+          <input className="form-control" id="username" type="text" name="username" onChange={this.changeData} value={this.state.stringData.username} required/>
+          <p className="help-block text-muted">Optional username for Git authentication.</p>
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="control-label" htmlFor="password">Password or Token</label>
+        <div className="modal-body__field">
+          <input className="form-control" id="password" type="password" name="password" onChange={this.changeData} value={this.state.stringData.password} required/>
+          <p className="help-block text-muted">Password or token for Git authentication. Required if a ca.crt or .gitconfig file is not specified.</p>
+        </div>
+      </div>
+    </React.Fragment>;
+
+    const sshAuthSubform = <div className="form-group"></div>
+
+    return <React.Fragment>
+      <div className="form-group">
+        <label className="control-label">Authentication Type</label>
+        <div className="modal-body__field">
+          <select onChange={this.changeAuthenticationType} value={this.state.authenticationType} className="form-control">
+            <option key='kubernetes.io/basic-auth' value='kubernetes.io/basic-auth'>Basic Authentication</option>
+            <option key='kubernetes.io/ssh-auth' value='kubernetes.io/ssh-auth'>SSH Key</option>
+          </select>
+        </div>
+      </div>
+      { this.state.authenticationType === 'kubernetes.io/basic-auth' ? basicAuthSubform : sshAuthSubform }
+    </React.Fragment>;
+  }
+}
+
 export type BaseEditSecretState_ = {
-  secretType?: string,
+  secretTypeAbstraction?: SecretTypeAbstraction,
   secret: K8sResourceKind,
   inProgress: boolean,
-  type: string,
+  type: SecretType,
   stringData: {[key: string]: string},
   error?: any,
 };
@@ -183,13 +282,24 @@ export type BaseEditSecretProps_ = {
   isCreate: boolean,
   titleVerb: string,
   setActiveNamespace: Function,
-  secretType?: string,
+  secretTypeAbstraction?: SecretTypeAbstraction,
   saveButtonText?: string,
   metadata: any,
 };
 
+export type SourceSecretSubformState = {
+  authenticationType: SecretType,
+  stringData: {[key: string]: string};
+};
+
+export type SourceSecretSubformProps = {
+  onChange: Function;
+  stringData: {[key: string]: string};
+};
+
 export type WebHookSecretSubformState = {
-  WebHookSecretKey: string;
+  authenticationType: SecretType,
+  stringData: {[key: string]: string};
 };
 
 export type WebHookSecretSubformProps = {
