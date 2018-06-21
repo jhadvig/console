@@ -11,6 +11,54 @@ import { getActiveNamespace, formatNamespacedRouteForResource, UIActions } from 
 import { SafetyFirst } from '../safety-first';
 import { WebHookSecretKey } from '../secret';
 
+import * as ace from 'brace';
+import 'brace/mode/text';
+import 'brace/theme/github';
+
+class Editor extends React.Component<EditorProps, EditorState> {
+  private editor: any;
+  // private editData: any;
+  constructor(props) {
+    super(props);
+    this.state = {
+      data: this.props.data,
+      height: 300
+    };
+    // this.onDataChanged = this.onDataChanged.bind(this);
+    this.editor = null;
+  }
+  onDataChange() {
+    this.setState({data: this.editor.getValue()});
+  }
+  componentDidMount() {
+    this.editor = ace.edit('private-key');
+    this.editor.getSession().setMode('ace/mode/text');
+    this.editor.setTheme('ace/theme/github');
+    this.editor.setValue(this.state.data);
+    this.editor.setPrintMarginColumn(false);
+    this.editor.clearSelection();
+    this.editor.onChange(this.onDataChange());
+  }
+  render() {
+    return <div className="form-group">
+      <label className="control-label" htmlFor="private-key">{this.props.label}</label>
+      <div className="modal-body__field" id="private-key"></div>
+      <p className="help-block text-muted">{this.props.helpBlock}</p>
+    </div>;
+  }
+}
+
+export type EditorState = {
+  data: any,
+  height: any,
+};
+
+export type EditorProps = {
+  data: any,
+  label: string,
+  helpBlock: string,
+};
+
 enum SecretTypeAbstraction {
   generic = 'generic',
   source = 'source',
@@ -249,7 +297,7 @@ class SourceSecretSubform extends React.Component<SourceSecretSubformProps, Sour
       </div>
     </React.Fragment>;
 
-    const sshAuthSubform = <div className="form-group"></div>
+    const sshAuthSubform = <Editor data="TEST" label="SSH Private Key" helpBlock="Private SSH key file for Git authentication." />;
 
     return <React.Fragment>
       <div className="form-group">
