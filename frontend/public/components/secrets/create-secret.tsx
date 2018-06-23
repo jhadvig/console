@@ -2,13 +2,13 @@
 import * as _ from 'lodash-es';
 import * as React from 'react';
 import { Helmet } from 'react-helmet';
-import { connect } from 'react-redux';
+// import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
 
 import { k8sCreate, k8sUpdate, K8sResourceKind } from '../../module/k8s';
 import { ButtonBar, Firehose, history, kindObj, StatusBox } from '../utils';
-import { getActiveNamespace, formatNamespacedRouteForResource, UIActions } from '../../ui/ui-actions';
-import { SafetyFirst } from '../safety-first';
+import { formatNamespacedRouteForResource } from '../../ui/ui-actions';
+// import { SafetyFirst } from '../safety-first';
 import { WebHookSecretKey } from '../secret';
 
 export enum SecretTypes {
@@ -16,16 +16,23 @@ export enum SecretTypes {
   generic = 'generic',
 }
 
+const generateSecret = () => {
+  // http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
+  const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+  return s4() + s4() + s4() + s4();
+};
+
 const determineSecretTypeAbstraction = (data) => {
   return _.has(data, WebHookSecretKey) ? SecretTypes.webhook : SecretTypes.generic;
 };
 
-class BaseEditSecret_ extends SafetyFirst<BaseEditSecretProps_, BaseEditSecretState_> {
+const secretForm = (SubformComponent) => class SecretFormHOC extends React.Component<BaseEditSecretProps_, BaseEditSecretState_> {
   constructor (props) {
     super(props);
-    const existingObj = _.pick(props.obj, ['metadata', 'type']);
-    const existingData = _.get(props.obj, 'data');
-    const secret = _.defaultsDeep({}, props.fixed, existingObj, {
+    const inputObj = _.get(props.obj, 'data');
+    const existingSecret = _.pick(inputObj, ['metadata', 'type']);
+    const existingSecretData = _.get(inputObj, 'data');
+    const secret = _.defaultsDeep({}, props.fixed, existingSecret, {
       apiVersion: 'v1',
       data: {},
       kind: 'Secret',
@@ -36,11 +43,11 @@ class BaseEditSecret_ extends SafetyFirst<BaseEditSecretProps_, BaseEditSecretSt
     });
 
     this.state = {
-      secretType: this.props.secretType || determineSecretTypeAbstraction(existingData),
+      secretType: this.props.secretType || determineSecretTypeAbstraction(existingSecretData),
       secret: secret,
       inProgress: false,
       type: secret.type,
-      stringData: _.mapValues(existingData, window.atob),
+      stringData: _.mapValues(existingSecretData, window.atob),
     };
     this.onDataChanged = this.onDataChanged.bind(this);
     this.onNameChanged = this.onNameChanged.bind(this);
@@ -76,7 +83,6 @@ class BaseEditSecret_ extends SafetyFirst<BaseEditSecretProps_, BaseEditSecretSt
     const { saveButtonText } = this.props;
 
     const explanation = 'Webhook secrets allow you to authenticate a webhook trigger.';
-    const subform = <WebHookSecretSubform onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData} />;
 
     return <div className="co-m-pane__body">
       <Helmet>
@@ -95,7 +101,7 @@ class BaseEditSecret_ extends SafetyFirst<BaseEditSecretProps_, BaseEditSecretSt
             </div>
           </div>
         </fieldset>
-        {subform}
+        <SubformComponent onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData} />
         <ButtonBar errorMessage={this.state.error} inProgress={this.state.inProgress} >
           <button type="submit" className="btn btn-primary" id="create-secret">{saveButtonText || 'Create'}</button>
           <Link to={formatNamespacedRouteForResource('secrets')} className="btn btn-default">Cancel</Link>
@@ -104,37 +110,6 @@ class BaseEditSecret_ extends SafetyFirst<BaseEditSecretProps_, BaseEditSecretSt
     </div>;
   }
 }
-
-const BaseEditSecret = connect(null, {setActiveNamespace: UIActions.setActiveNamespace})(
-  (props: BaseEditSecretProps_) => <BaseEditSecret_ {...props} />
-);
-
-const BindingLoadingWrapper = props => {
-  const fixed = _.reduce(props.fixedKeys, (acc, k) => ({...acc, k: _.get(props.obj.data, k)}), {});
-  return <StatusBox {...props.obj}>
-    <BaseEditSecret {...props} obj={props.obj.data} fixed={fixed} />
-  </StatusBox>;
-};
-
-export const CreateSecret = ({match: {params}}) => {
-  return <BaseEditSecret
-    fixed={{ metadata: {namespace: params.ns} }}
-    metadata={{ namespace: getActiveNamespace() }}
-    secretType={params.type}
-    titleVerb="Create"
-    isCreate={true}
-  />;
-};
-
-export const EditSecret = ({match: {params}, kind}) => <Firehose resources={[{kind: kind, name: params.name, namespace: params.ns, isList: false, prop: 'obj'}]}>
-  <BindingLoadingWrapper fixedKeys={['kind', 'metadata']} titleVerb="Edit" saveButtonText="Save Changes" />
-</Firehose>;
-
-const generateSecret = () => {
-  // http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
-  const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
-  return s4() + s4() + s4() + s4();
-};
 
 class WebHookSecretSubform extends React.Component<WebHookSecretSubformProps, WebHookSecretSubformState> {
   constructor(props) {
@@ -167,6 +142,52 @@ class WebHookSecretSubform extends React.Component<WebHookSecretSubformProps, We
   }
 }
 
+
+
+const secretFormFactory = secretType => {
+  switch(secretType) {
+    case 'webhook':
+      return secretForm(WebHookSecretSubform);
+    default:
+      return secretForm(WebHookSecretSubform);
+  }
+}
+
+const SecretLoadingWrapper = props => {
+  // props.obj.data = {kind: "Secret", apiVersion: "v1", metadata: {…}, data: {…}, type: "Opaque"}
+  const SecretFormHOC = secretFormFactory('webhook');
+  const fixed = _.reduce(props.fixedKeys, (acc, k) => ({...acc, k: _.get(props.obj.data, k)}), {});
+  return <StatusBox {...props.obj}>
+    <SecretFormHOC
+      // secretTypeAbstraction={SecretTypeAbstraction.webhook}
+      obj={props.obj.data}
+      fixed={fixed}
+      {...props}
+    />
+  </StatusBox>;
+};
+
+
+export const CreateSecret = ({match: {params}}) => {
+  // params = {ns: "myproject", type: "webhook"}
+  const SecretFormHOC = secretFormFactory(params.type);
+  return <SecretFormHOC fixed={{ metadata: {namespace: 'myproject'} }}
+    metadata={{ namespace: 'myproject' }}
+    // secretTypeAbstraction={SecretTypeAbstraction.webhook}
+    // secretType={params.type}
+    titleVerb="Create"
+    isCreate={true}
+  />
+};
+
+export const EditSecret = ({match: {params}, kind}) => <Firehose resources={[{kind: kind, name: params.name, namespace: params.ns, isList: false, prop: 'obj'}]}>
+  <SecretLoadingWrapper fixedKeys={['kind', 'metadata']} titleVerb="Edit" saveButtonText="Save Changes" />
+</Firehose>;
+
+
+
+
+
 export type BaseEditSecretState_ = {
   secretType?: string,
   secret: K8sResourceKind,
@@ -182,7 +203,7 @@ export type BaseEditSecretProps_ = {
   kind?: string,
   isCreate: boolean,
   titleVerb: string,
-  setActiveNamespace: Function,
+  // setActiveNamespace: Function,
   secretType?: string,
   saveButtonText?: string,
   metadata: any,
