@@ -165,13 +165,8 @@ class SourceSecretSubform extends React.Component<SourceSecretSubformProps, Sour
     super(props);
     this.state = this.state = {
       authenticationType: SecretType.basicAuth,
-      stringData: {
-        username: '',
-        password: '',
-        privateKey: '',
-      },
+      stringData: this.props.stringData || {},
     };
-    this.changeData = this.changeData.bind(this);
     this.changeAuthenticationType = this.changeAuthenticationType.bind(this);
   }
   changeAuthenticationType(event) {
@@ -179,32 +174,80 @@ class SourceSecretSubform extends React.Component<SourceSecretSubformProps, Sour
       authenticationType: event.target.value
     }, () => this.props.onChange(this.state));
   }
-  changeData(event) {
-    const updatedData = _.assign(this.state.stringData, {[event.target.name]: event.target.value});
+  onDataChanged (secretsData) {
     this.setState({
-      stringData: updatedData
+      stringData: {...secretsData},
     }, () => this.props.onChange(this.state));
   }
   render () {
-    const basicAuthSubform = <React.Fragment>
+    return <React.Fragment>
+      <div className="form-group">
+        <label className="control-label">Authentication Type</label>
+        <div className="modal-body__field">
+          <select onChange={this.changeAuthenticationType} value={this.state.authenticationType} className="form-control">
+            <option key="kubernetes.io/basic-auth" value="kubernetes.io/basic-auth">Basic Authentication</option>
+            <option key="kubernetes.io/ssh-auth" value="kubernetes.io/ssh-auth">SSH Key</option>
+          </select>
+        </div>
+      </div>
+      { this.state.authenticationType === 'kubernetes.io/basic-auth'
+        ? <BasicAuthSubform onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData}/>
+        : <SSHAuthSubform onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData}/> 
+      }
+    </React.Fragment>;
+  }
+}
+
+class BasicAuthSubform extends React.Component<BasicAuthSubformProps, BasicAuthSubformState> {
+  constructor (props) {
+    super(props);
+    this.state = {
+      username: this.props.stringData.username || '',
+      password: this.props.stringData.password || '',
+    };
+    this.changeData = this.changeData.bind(this);
+  }
+  changeData(event) {
+    this.setState({
+      [event.target.name]: event.target.value
+    }, () => this.props.onChange(this.state));
+  }
+  render() {
+    return <React.Fragment>
       <div className="form-group">
         <label className="control-label" htmlFor="username">Username</label>
         <div className="modal-body__field">
-          <input className="form-control" id="username" type="text" name="username" onChange={this.changeData} value={this.state.stringData.username} required/>
+          <input className="form-control" id="username" type="text" name="username" onChange={this.changeData} value={this.state.username} required/>
           <p className="help-block text-muted">Optional username for Git authentication.</p>
         </div>
       </div>
       <div className="form-group">
         <label className="control-label" htmlFor="password">Password or Token</label>
         <div className="modal-body__field">
-          <input className="form-control" id="password" type="password" name="password" onChange={this.changeData} value={this.state.stringData.password} required/>
+          <input className="form-control" id="password" type="password" name="password" onChange={this.changeData} value={this.state.password} required/>
           <p className="help-block text-muted">Password or token for Git authentication. Required if a ca.crt or .gitconfig file is not specified.</p>
         </div>
       </div>
     </React.Fragment>;
+  }
+}
 
-    const sshAuthSubform = <div className="form-group">
-      <label className="control-label" htmlFor="private-key">SSH Private Key</label>
+class SSHAuthSubform extends React.Component<SSHAuthSubformProps, SSHAuthSubformState> {
+  constructor (props) {
+    super(props);
+    this.state = {
+      'ssh-privatekey': this.props.stringData['ssh-privatekey'] || '',
+    };
+    this.changeData = this.changeData.bind(this);
+  }
+  changeData(event) {
+    this.setState({
+      'ssh-privatekey': event.target.value
+    }, () => this.props.onChange(this.state));
+  }
+  render() {
+    return <div className="form-group">
+      <label className="control-label" htmlFor="ssh-privatekey">SSH Private Key</label>
       <div className="modal-body__field">
         <div className="input-group">
           <input type="text" className="form-control" readOnly disabled/>
@@ -217,28 +260,15 @@ class SourceSecretSubform extends React.Component<SourceSecretSubformProps, Sour
         </div>
         <p className="help-block text-muted">Upload your private SSH key file.</p>
         <textarea className="form-control form-textarea"
-          id="private-key"
+          id="ssh-privatekey"
           name="privateKey"
           onChange={this.changeData}
-          value={this.state.stringData.password}
-          required>{this.state.stringData.privateKey}
+          value={this.state['ssh-privatekey']}
+          required>
         </textarea>
         <p className="help-block text-muted">Private SSH key file for Git authentication.</p>
       </div>
     </div>;
-
-    return <React.Fragment>
-      <div className="form-group">
-        <label className="control-label">Authentication Type</label>
-        <div className="modal-body__field">
-          <select onChange={this.changeAuthenticationType} value={this.state.authenticationType} className="form-control">
-            <option key="kubernetes.io/basic-auth" value="kubernetes.io/basic-auth">Basic Authentication</option>
-            <option key="kubernetes.io/ssh-auth" value="kubernetes.io/ssh-auth">SSH Key</option>
-          </select>
-        </div>
-      </div>
-      { this.state.authenticationType === 'kubernetes.io/basic-auth' ? basicAuthSubform : sshAuthSubform }
-    </React.Fragment>;
   }
 }
 
@@ -302,6 +332,25 @@ export type BaseEditSecretProps_ = {
   secretTypeAbstraction?: SecretTypeAbstraction,
   saveButtonText?: string,
   metadata: any,
+};
+
+export type BasicAuthSubformState = {
+  username: string,
+  password: string,
+};
+
+export type BasicAuthSubformProps = {
+  onChange: Function;
+  stringData: {[key: string]: string};
+};
+
+export type SSHAuthSubformState = {
+  'ssh-privatekey': string,
+};
+
+export type SSHAuthSubformProps = {
+  onChange: Function;
+  stringData: {[key: string]: string};
 };
 
 export type SourceSecretSubformState = {
