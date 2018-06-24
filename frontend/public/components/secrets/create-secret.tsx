@@ -241,6 +241,40 @@ class BasicAuthSubform extends React.Component<BasicAuthSubformProps, BasicAuthS
   }
 }
 
+class FileInput extends React.Component<fileInputProps, fileInputState> {
+  constructor(props) {
+    super(props);
+    this.state = {
+      inputFileContent: '',
+    };
+    this.onFileChange = this.onFileChange.bind(this);
+  }
+  onFileChange(event) {
+    const file = event.target.files[0];
+    
+    const reader = new FileReader();
+    reader.onload = e => {
+      const input = e.target.result;
+      this.setState({
+        inputFileContent: input
+      }, () => this.props.onChange(this.state));
+    };
+
+    reader.readAsText(file, 'UTF-8');
+  }
+  render() {
+    return <div className="input-group">
+      <input type="text" className="form-control" value={this.state.inputFileContent} readOnly disabled/>
+      <span className="input-group-btn">
+        <span className="btn btn-default btn-file">
+          Browse&hellip;
+          <input type="file" onChange={this.onFileChange} className="form-control"/>
+        </span>
+      </span>
+    </div>
+  }
+}
+
 class SSHAuthSubform extends React.Component<SSHAuthSubformProps, SSHAuthSubformState> {
   constructor (props) {
     super(props);
@@ -254,19 +288,14 @@ class SSHAuthSubform extends React.Component<SSHAuthSubformProps, SSHAuthSubform
       'ssh-privatekey': event.target.value
     }, () => this.props.onChange(this.state));
   }
+  onFileChange(fileContent) {
+    console.log(fileContent);
+  }
   render() {
     return <div className="form-group">
       <label className="control-label" htmlFor="ssh-privatekey">SSH Private Key</label>
       <div className="modal-body__field">
-        <div className="input-group">
-          <input type="text" className="form-control" readOnly disabled/>
-          <span className="input-group-btn">
-            <span className="btn btn-default btn-file">
-              Browse&hellip;
-              <input type="file" className="form-control"/>
-            </span>
-          </span>
-        </div>
+        <FileInput onChange={this.onFileChange.bind(this)}/>
         <p className="help-block text-muted">Upload your private SSH key file.</p>
         <textarea className="form-control form-textarea"
           id="ssh-privatekey"
@@ -350,6 +379,14 @@ export type SSHAuthSubformState = {
 export type SSHAuthSubformProps = {
   onChange: Function;
   stringData: {[key: string]: string},
+};
+
+export type fileInputState = {
+  inputFileContent: string,
+};
+
+export type fileInputProps = {
+  onChange: Function,
 };
 
 export type SourceSecretSubformState = {
