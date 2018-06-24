@@ -1,11 +1,10 @@
-/* eslint-disable no-undef */
 import * as _ from 'lodash-es';
 import * as React from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 
 import { k8sCreate, k8sUpdate, K8sResourceKind } from '../../module/k8s';
-import { ButtonBar, Firehose, history, kindObj, StatusBox, FileInput } from '../utils';
+import { ButtonBar, Firehose, history, kindObj, StatusBox, DropableFileInput } from '../utils';
 import { formatNamespacedRouteForResource } from '../../ui/ui-actions';
 import { WebHookSecretKey } from '../secret';
 
@@ -252,32 +251,19 @@ class SSHAuthSubform extends React.Component<SSHAuthSubformProps, SSHAuthSubform
     };
     this.changeData = this.changeData.bind(this);
   }
-  changeData(event) {
+  changeData(data) {
     this.setState({
-      'ssh-privatekey': event.target.value
-    }, () => this.props.onChange(this.state));
-  }
-  onFileChange(fileData) {
-    this.setState({
-      'ssh-privatekey': fileData
+      'ssh-privatekey': data
     }, () => this.props.onChange(this.state));
   }
   render() {
-    return <div className="form-group">
-      <label className="control-label" htmlFor="ssh-privatekey">SSH Private Key</label>
-      <div className="modal-body__field">
-        <FileInput onChange={this.onFileChange.bind(this)}/>
-        <p className="help-block text-muted">Upload your private SSH key file.</p>
-        <textarea className="form-control form-textarea"
-          id="ssh-privatekey"
-          name="privateKey"
-          onChange={this.changeData}
-          value={this.state['ssh-privatekey']}
-          required>
-        </textarea>
-        <p className="help-block text-muted">Private SSH key file for Git authentication.</p>
-      </div>
-    </div>;
+    return <DropableFileInput 
+      label='SSH Private Key'
+      inputFieldHelpText='Upload your private SSH key file.'
+      textareaFieldHelpText='Private SSH key file for Git authentication.'
+      inputData={this.state['ssh-privatekey']}
+      onChange={this.changeData.bind(this)}
+    />
   }
 }
 
@@ -367,4 +353,3 @@ export type WebHookSecretSubformProps = {
   onChange: Function;
   stringData: {[WebHookSecretKey: string]: string},
 };
-/* eslint-enable no-undef */
