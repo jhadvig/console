@@ -130,25 +130,27 @@ const secretForm = (SubformComponent) => class SecretFormComponent extends React
 class WebHookSecretSubform extends React.Component<WebHookSecretSubformProps, WebHookSecretSubformState> {
   constructor(props) {
     super(props);
-    this.state = {WebHookSecretKey: this.props.stringData.WebHookSecretKey || ''};
+    this.state = {
+      stringData: {WebHookSecretKey: this.props.stringData.WebHookSecretKey || ''}
+    };
     this.changeWebHookSecretkey = this.changeWebHookSecretkey.bind(this);
     this.generateWebHookSecret = this.generateWebHookSecret.bind(this);
   }
   changeWebHookSecretkey(event) {
     this.setState({
-      WebHookSecretKey: event.target.value
+      stringData: { WebHookSecretKey: event.target.value }
     }, () => this.props.onChange(this.state));
   }
   generateWebHookSecret() {
     this.setState({
-      WebHookSecretKey: generateSecret()
+      stringData: { WebHookSecretKey: generateSecret() }
     }, () => this.props.onChange(this.state));
   }
   render () {
     return <div className="form-group">
       <label className="control-label" htmlFor="webhook-secret-key">Webhook Secret Key</label>
       <div className="input-group">
-        <input className="form-control" id="webhook-secret-key" type="text" name="webhookSecretKey" onChange={this.changeWebHookSecretkey} value={this.state.WebHookSecretKey} required/>
+        <input className="form-control" id="webhook-secret-key" type="text" name="webhookSecretKey" onChange={this.changeWebHookSecretkey} value={this.state.stringData.WebHookSecretKey} required/>
         <span className="input-group-btn">
           <button type="button" onClick={this.generateWebHookSecret} className="btn btn-default">Generate</button>
         </span>
@@ -161,7 +163,7 @@ class WebHookSecretSubform extends React.Component<WebHookSecretSubformProps, We
 class SourceSecretSubform extends React.Component<SourceSecretSubformProps, SourceSecretSubformState> {
   constructor (props) {
     super(props);
-    this.state = this.state = {
+    this.state = {
       authenticationType: this.props.secretType,
       stringData: this.props.stringData || {},
     };
@@ -296,7 +298,6 @@ const SecretLoadingWrapper = props => {
 export const CreateSecret = ({match: {params}}) => {
   const SecretFormComponent = secretFormFactory(params.type);
   return <SecretFormComponent fixed={{ metadata: { namespace: params.ns } }}
-    metadata={{ namespace: params.ns }}
     secretTypeAbstraction={params.type}
     titleVerb="Create"
     isCreate={true}
@@ -325,7 +326,6 @@ export type BaseEditSecretProps_ = {
   titleVerb: string,
   secretTypeAbstraction?: SecretTypeAbstraction,
   saveButtonText?: string,
-  metadata: any,
 };
 
 export type BasicAuthSubformState = {
@@ -360,7 +360,7 @@ export type SourceSecretSubformProps = {
 };
 
 export type WebHookSecretSubformState = {
-  WebHookSecretKey: string,
+  stringData: {[key: string]: string},
 };
 
 export type WebHookSecretSubformProps = {
