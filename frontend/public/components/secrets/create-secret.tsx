@@ -119,7 +119,7 @@ const secretForm = (SubformComponent) => class SecretFormHOC extends React.Compo
             </div>
           </div>
         </fieldset>
-        <SubformComponent onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData} />
+        <SubformComponent onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData} secretType={this.state.secret.type}/>
         <ButtonBar errorMessage={this.state.error} inProgress={this.state.inProgress} >
           <button type="submit" className="btn btn-primary" id="create-secret">{saveButtonText || 'Create'}</button>
           <Link to={formatNamespacedRouteForResource('secrets')} className="btn btn-default">Cancel</Link>
@@ -164,7 +164,7 @@ class SourceSecretSubform extends React.Component<SourceSecretSubformProps, Sour
   constructor (props) {
     super(props);
     this.state = this.state = {
-      authenticationType: SecretType.basicAuth,
+      authenticationType: this.props.secretType,
       stringData: this.props.stringData || {},
     };
     this.changeAuthenticationType = this.changeAuthenticationType.bind(this);
@@ -195,6 +195,15 @@ class SourceSecretSubform extends React.Component<SourceSecretSubformProps, Sour
         : <SSHAuthSubform onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData}/> 
       }
     </React.Fragment>;
+  }
+}
+
+const secretFormFactory = secretType => {
+  switch(secretType) {
+    case 'webhook':
+      return secretForm(WebHookSecretSubform);
+    default:
+      return secretForm(SourceSecretSubform);
   }
 }
 
@@ -272,15 +281,6 @@ class SSHAuthSubform extends React.Component<SSHAuthSubformProps, SSHAuthSubform
   }
 }
 
-const secretFormFactory = secretType => {
-  switch(secretType) {
-    case 'webhook':
-      return secretForm(WebHookSecretSubform);
-    default:
-      return secretForm(SourceSecretSubform);
-  }
-}
-
 const SecretLoadingWrapper = props => {
   // props.obj.data = {kind: "Secret", apiVersion: "v1", metadata: {…}, data: {…}, type: "Opaque"}
   const secretTypeAbstraction = determineSecretTypeAbstraction(_.get(props.obj.data, 'data'));
@@ -295,7 +295,6 @@ const SecretLoadingWrapper = props => {
     />
   </StatusBox>;
 };
-
 
 export const CreateSecret = ({match: {params}}) => {
   // params = {ns: "myproject", type: "webhook"}
@@ -340,8 +339,8 @@ export type BasicAuthSubformState = {
 };
 
 export type BasicAuthSubformProps = {
-  onChange: Function;
-  stringData: {[key: string]: string};
+  onChange: Function,
+  stringData: {[key: string]: string},
 };
 
 export type SSHAuthSubformState = {
@@ -350,25 +349,26 @@ export type SSHAuthSubformState = {
 
 export type SSHAuthSubformProps = {
   onChange: Function;
-  stringData: {[key: string]: string};
+  stringData: {[key: string]: string},
 };
 
 export type SourceSecretSubformState = {
   authenticationType: SecretType,
-  stringData: {[key: string]: string};
+  stringData: {[key: string]: string},
 };
 
 export type SourceSecretSubformProps = {
   onChange: Function;
-  stringData: {[key: string]: string};
+  stringData: {[key: string]: string},
+  secretType: SecretType,
 };
 
 export type WebHookSecretSubformState = {
-  WebHookSecretKey: string;
+  WebHookSecretKey: string,
 };
 
 export type WebHookSecretSubformProps = {
   onChange: Function;
-  stringData: {[WebHookSecretKey: string]: string};
+  stringData: {[WebHookSecretKey: string]: string},
 };
 /* eslint-enable no-undef */
