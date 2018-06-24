@@ -2,13 +2,11 @@
 import * as _ from 'lodash-es';
 import * as React from 'react';
 import { Helmet } from 'react-helmet';
-// import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
 
 import { k8sCreate, k8sUpdate, K8sResourceKind } from '../../module/k8s';
-import { ButtonBar, Firehose, history, kindObj, StatusBox } from '../utils';
+import { ButtonBar, Firehose, history, kindObj, StatusBox, FileInput } from '../utils';
 import { formatNamespacedRouteForResource } from '../../ui/ui-actions';
-// import { SafetyFirst } from '../safety-first';
 import { WebHookSecretKey } from '../secret';
 
 enum SecretTypeAbstraction {
@@ -40,7 +38,8 @@ const generateSecret = () => {
   return s4() + s4() + s4() + s4();
 };
 
-const secretForm = (SubformComponent) => class SecretFormHOC extends React.Component<BaseEditSecretProps_, BaseEditSecretState_> {
+// secretForm returns SubformComponent which is a Higher Order Component for all the types of secret forms.
+const secretForm = (SubformComponent) => class SecretFormComponent extends React.Component<BaseEditSecretProps_, BaseEditSecretState_> {
   constructor (props) {
     super(props);
     const inputObj = _.get(props.obj, 'data');
@@ -83,7 +82,7 @@ const secretForm = (SubformComponent) => class SecretFormHOC extends React.Compo
     const { kind, metadata } = this.state.secret;
     this.setState({ inProgress: true });
 
-    const newSecret = _.assign({}, this.state.secret, {stringData: this.state.stringData});
+    const newSecret = _.assign({}, this.state.secret, {stringData: this.state.stringData}, {type: this.state.type});
     const ko = kindObj(kind);
     (this.props.isCreate
       ? k8sCreate(ko, newSecret)
@@ -91,16 +90,15 @@ const secretForm = (SubformComponent) => class SecretFormHOC extends React.Compo
     ).then(() => {
       this.setState({inProgress: false});
       history.push(formatNamespacedRouteForResource('secrets'));
-    },
-    err => this.setState({error: err.message, inProgress: false})
-    );
+    }, err => this.setState({error: err.message, inProgress: false}));
   }
   render () {
     const title = `${this.props.titleVerb} ${_.upperFirst(this.state.secretTypeAbstraction)} Secret`;
     const { saveButtonText } = this.props;
 
-    let explanation = 'Webhook secrets allow you to authenticate a webhook trigger.';
-    // const explanation = 'Source secrets allow you to authenticate against the SCM server.';
+    const explanation = this.state.secretTypeAbstraction === 'source'
+      ? 'Source secrets allow you to authenticate against the SCM server.'
+      : 'Webhook secrets allow you to authenticate a webhook trigger.';
 
     return <div className="co-m-pane__body">
       <Helmet>
@@ -119,7 +117,7 @@ const secretForm = (SubformComponent) => class SecretFormHOC extends React.Compo
             </div>
           </div>
         </fieldset>
-        <SubformComponent onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData} secretType={this.state.secret.type}/>
+        <SubformComponent onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData} secretType={this.state.secret.type} isCreate={this.props.isCreate} />
         <ButtonBar errorMessage={this.state.error} inProgress={this.state.inProgress} >
           <button type="submit" className="btn btn-primary" id="create-secret">{saveButtonText || 'Create'}</button>
           <Link to={formatNamespacedRouteForResource('secrets')} className="btn btn-default">Cancel</Link>
@@ -181,15 +179,18 @@ class SourceSecretSubform extends React.Component<SourceSecretSubformProps, Sour
   }
   render () {
     return <React.Fragment>
-      <div className="form-group">
-        <label className="control-label">Authentication Type</label>
-        <div className="modal-body__field">
-          <select onChange={this.changeAuthenticationType} value={this.state.authenticationType} className="form-control">
-            <option key="kubernetes.io/basic-auth" value="kubernetes.io/basic-auth">Basic Authentication</option>
-            <option key="kubernetes.io/ssh-auth" value="kubernetes.io/ssh-auth">SSH Key</option>
-          </select>
-        </div>
-      </div>
+      {this.props.isCreate
+        ? <div className="form-group">
+            <label className="control-label">Authentication Type</label>
+            <div className="modal-body__field">
+              <select onChange={this.changeAuthenticationType} value={this.state.authenticationType} className="form-control">
+                <option key="kubernetes.io/basic-auth" value="kubernetes.io/basic-auth">Basic Authentication</option>
+                <option key="kubernetes.io/ssh-auth" value="kubernetes.io/ssh-auth">SSH Key</option>
+              </select>
+            </div>
+          </div>
+        : null
+      }
       { this.state.authenticationType === 'kubernetes.io/basic-auth'
         ? <BasicAuthSubform onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData}/>
         : <SSHAuthSubform onChange={this.onDataChanged.bind(this)} stringData={this.state.stringData}/> 
@@ -241,40 +242,6 @@ class BasicAuthSubform extends React.Component<BasicAuthSubformProps, BasicAuthS
   }
 }
 
-class FileInput extends React.Component<fileInputProps, fileInputState> {
-  constructor(props) {
-    super(props);
-    this.state = {
-      inputFileContent: '',
-    };
-    this.onFileChange = this.onFileChange.bind(this);
-  }
-  onFileChange(event) {
-    const file = event.target.files[0];
-    
-    const reader = new FileReader();
-    reader.onload = e => {
-      const input = e.target.result;
-      this.setState({
-        inputFileContent: input
-      }, () => this.props.onChange(this.state));
-    };
-
-    reader.readAsText(file, 'UTF-8');
-  }
-  render() {
-    return <div className="input-group">
-      <input type="text" className="form-control" value={this.state.inputFileContent} readOnly disabled/>
-      <span className="input-group-btn">
-        <span className="btn btn-default btn-file">
-          Browse&hellip;
-          <input type="file" onChange={this.onFileChange} className="form-control"/>
-        </span>
-      </span>
-    </div>
-  }
-}
-
 class SSHAuthSubform extends React.Component<SSHAuthSubformProps, SSHAuthSubformState> {
   constructor (props) {
     super(props);
@@ -288,8 +255,10 @@ class SSHAuthSubform extends React.Component<SSHAuthSubformProps, SSHAuthSubform
       'ssh-privatekey': event.target.value
     }, () => this.props.onChange(this.state));
   }
-  onFileChange(fileContent) {
-    console.log(fileContent);
+  onFileChange(fileData) {
+    this.setState({
+      'ssh-privatekey': fileData
+    }, () => this.props.onChange(this.state));
   }
   render() {
     return <div className="form-group">
@@ -311,12 +280,11 @@ class SSHAuthSubform extends React.Component<SSHAuthSubformProps, SSHAuthSubform
 }
 
 const SecretLoadingWrapper = props => {
-  // props.obj.data = {kind: "Secret", apiVersion: "v1", metadata: {…}, data: {…}, type: "Opaque"}
   const secretTypeAbstraction = determineSecretTypeAbstraction(_.get(props.obj.data, 'data'));
-  const SecretFormHOC = secretFormFactory(secretTypeAbstraction);
+  const SecretFormComponent = secretFormFactory(secretTypeAbstraction);
   const fixed = _.reduce(props.fixedKeys, (acc, k) => ({...acc, k: _.get(props.obj.data, k)}), {});
   return <StatusBox {...props.obj}>
-    <SecretFormHOC
+    <SecretFormComponent
       secretTypeAbstraction={secretTypeAbstraction}
       obj={props.obj.data}
       fixed={fixed}
@@ -326,10 +294,9 @@ const SecretLoadingWrapper = props => {
 };
 
 export const CreateSecret = ({match: {params}}) => {
-  // params = {ns: "myproject", type: "webhook"}
-  const SecretFormHOC = secretFormFactory(params.type);
-  return <SecretFormHOC fixed={{ metadata: {namespace: 'myproject'} }}
-    metadata={{ namespace: 'myproject' }}
+  const SecretFormComponent = secretFormFactory(params.type);
+  return <SecretFormComponent fixed={{ metadata: { namespace: params.ns } }}
+    metadata={{ namespace: params.ns }}
     secretTypeAbstraction={params.type}
     titleVerb="Create"
     isCreate={true}
@@ -356,7 +323,6 @@ export type BaseEditSecretProps_ = {
   kind?: string,
   isCreate: boolean,
   titleVerb: string,
-  // setActiveNamespace: Function,
   secretTypeAbstraction?: SecretTypeAbstraction,
   saveButtonText?: string,
   metadata: any,
@@ -381,14 +347,6 @@ export type SSHAuthSubformProps = {
   stringData: {[key: string]: string},
 };
 
-export type fileInputState = {
-  inputFileContent: string,
-};
-
-export type fileInputProps = {
-  onChange: Function,
-};
-
 export type SourceSecretSubformState = {
   authenticationType: SecretType,
   stringData: {[key: string]: string},
@@ -398,6 +356,7 @@ export type SourceSecretSubformProps = {
   onChange: Function;
   stringData: {[key: string]: string},
   secretType: SecretType,
+  isCreate: boolean,
 };
 
 export type WebHookSecretSubformState = {
