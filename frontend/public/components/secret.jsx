@@ -21,11 +21,16 @@ export const WebHookSecretKey = 'WebHookSecretKey';
 
 // Edit in YAML if not editing:
 // - source secrets
+// - image secret, both formats:
+//     - kubernetes.io/dockerconfigjson
+//     - kubernetes.io/dockercfg
 // - webhook secret with one key.
 const editInYaml = obj => {
   switch (obj.type) {
     case SecretType.basicAuth:
     case SecretType.sshAuth:
+    case SecretType.dockercfgAuth:
+    case SecretType.dockerconfigjsonAuth:
       return false;
     case SecretType.opaque:
       return !_.has(obj, ['data', WebHookSecretKey]) || _.size(obj.data) !== 1;
@@ -103,7 +108,7 @@ const filters = [{
 
 const SecretsPage = props => {
   const createItems = {
-    // image: 'Create Image Pull Secret',
+    image: 'Image Pull Secret',
     // generic: 'Create Key/Value Secret',
     source: 'Source Secret',
     webhook: 'Webhook Secret',
