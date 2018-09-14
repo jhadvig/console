@@ -64,7 +64,9 @@ export const CRDs = {
 };
 
 const SET_FLAG = 'SET_FLAG';
-export const setFlag = (dispatch, flag, value) => dispatch({flag, value, type: SET_FLAG});
+export const setFlag = (dispatch, flag, value) => {
+  return dispatch({flag, value, type: SET_FLAG})
+};
 
 const retryFlagDetection = (dispatch, cb) => {
   setTimeout(() => cb(dispatch), 15000);

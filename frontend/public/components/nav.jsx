@@ -155,7 +155,8 @@ const NavSection = connect(navSectionStateToProps)(
     }
 
     getActiveChild () {
-      const { activeNamespace, location, children } = this.props;
+      const { activeNamespace, location } = this.props;
+      const children = React.Children.toArray(this.props.children);
 
       if (!children) {
         return stripBasePath(location).startsWith(this.props.activePath);
@@ -370,6 +371,13 @@ export class Nav extends React.Component {
       <div id="sidebar" className={classNames({'open': isOpen})}>
         <ClusterPickerNavSection />
         <div ref={this.scroller} onWheel={this.preventScroll} className="navigation-container">
+
+
+          <NavSection text="CRDs" icon="fa fa-plug" required={FLAGS.CAN_LIST_CRD} >
+            <ResourceNSLink resource="secrets" name="Secrets" onClick={this.close} />
+          </NavSection>
+
+
           <NavSection text="Home" icon="pficon pficon-home">
             <HrefLink href="/status" name="Status" activePath="/status/" onClick={this.close} />
             <HrefLink href="/search" name="Search" onClick={this.close} startsWith={searchStartsWith} />
