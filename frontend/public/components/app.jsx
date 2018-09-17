@@ -22,9 +22,10 @@ import { ResourceDetailsPage, ResourceListPage } from './resource-list';
 import { history, AsyncComponent, Loading } from './utils';
 import { namespacedPrefixes } from './utils/link';
 import { UIActions, getActiveNamespace } from '../ui/ui-actions';
-import { ClusterServiceVersionModel, SubscriptionModel, AlertmanagerModel } from '../models';
+import { ClusterServiceVersionModel, SubscriptionModel, AlertmanagerModel, CustomResourceDefinitionModel } from '../models';
 import { referenceForModel } from '../module/k8s';
 import k8sActions from '../module/k8s/k8s-actions';
+import crdActions from '../module/crd/crd-actions';
 import '../vendor.scss';
 import '../style.scss';
 
@@ -210,8 +211,11 @@ class App extends React.PureComponent {
   }
 }
 
+console.log(featureActions);
 _.each(featureActions, store.dispatch);
 store.dispatch(k8sActions.watchAPIServices());
+store.dispatch(k8sActions.watchK8sList('CRDs', {}, CustomResourceDefinitionModel));
+store.dispatch(crdActions.getCRDs());
 store.dispatch(detectMonitoringURLs);
 
 analyticsSvc.push({tier: 'tectonic'});

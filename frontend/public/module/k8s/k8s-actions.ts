@@ -70,7 +70,9 @@ const actions = {
   getResources: () => dispatch => {
     dispatch({type: types.getResourcesInFlight});
     getResources_()
-      .then(resources => dispatch({type: types.resources, resources}))
+      .then(resources => {
+        return dispatch({type: types.resources, resources})
+      })
       // eslint-disable-next-line no-console
       .catch(err => console.error(err));
   },
@@ -78,6 +80,10 @@ const actions = {
   filterList: (id, name, value) => {
     return {id, name, value, type: types.filterList};
   },
+
+  // getCRDs: () => dispatch => {
+  //   this.watchK8sList('CRDs', {}, CustomResourceDefinitionModel)
+  // },
 
   watchK8sObject: (id, name, namespace, query, k8sType) => (dispatch, getState) => {
     if (id in REF_COUNTS) {

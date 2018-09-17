@@ -17,7 +17,9 @@ export const getResources = () => coFetchJSON('api/kubernetes/apis')
     const all: Promise<APIResourceList>[] = _.flatten(res.groups
       .map(group => group.versions.map(version => `/apis/${version.groupVersion}`)))
       .concat(['/api/v1'])
-      .map(p => coFetchJSON(`api/kubernetes${p}`).catch(err => err));
+      .map(p => {
+        return coFetchJSON(`api/kubernetes${p}`).catch(err => err)
+      });
 
     return Promise.all(all)
       .then(data => {

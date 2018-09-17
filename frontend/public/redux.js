@@ -5,12 +5,14 @@ import thunk from 'redux-thunk';
 import { featureReducer, featureReducerName } from './features';
 import { monitoringReducer, monitoringReducerName } from './monitoring';
 import k8sReducers from './module/k8s/k8s-reducers';
+import crdReducers from './module/crd/crd-reducers';
 import UIReducers from './ui/ui-reducers';
 
 const reducers = combineReducers({
   k8s: k8sReducers, // data
   UI: UIReducers,
   form: formReducer,
+  CRD: crdReducers,
   [featureReducerName]: featureReducer,
   [monitoringReducerName]: monitoringReducer,
 });
