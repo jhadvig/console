@@ -155,7 +155,8 @@ const NavSection = connect(navSectionStateToProps)(
     }
 
     getActiveChild () {
-      const { activeNamespace, location } = this.props;
+      const { activeNamespace, location, text } = this.props;
+      console.log(text);
       const children = React.Children.toArray(this.props.children);
 
       if (!children) {
@@ -213,6 +214,7 @@ const NavSection = connect(navSectionStateToProps)(
       }
 
       const { id, icon, img, text, children, activeNamespace, flags, href = null, activeImg, klass } = this.props;
+      console.log(text);
       const isActive = !!this.state.activeChild;
       // WARNING:
       // we transition on max-height because you can't transition to height 'inherit'
@@ -220,7 +222,8 @@ const NavSection = connect(navSectionStateToProps)(
       // we could use scaleY, but that literally scales along the Y axis, ie shrinks
       // we could use flexbox or the equivalent to get an actual height, but this is the easiest solution :-/
 
-      const maxHeight = !this.state.isOpen ? 0 : 29 * _.get(this.props.children, 'length', 1);
+      const childrenArray = React.Children.toArray(this.props.children);
+      const maxHeight = !this.state.isOpen ? 0 : 29 * _.get(childrenArray, 'length', 1);
 
       const iconClassName = icon && `${icon} navigation-container__section__title__icon ${isActive ? 'navigation-container__section__title__icon--active' : ''}`;
       const sectionClassName = isActive && href ? 'navigation-container__section navigation-container__section--active' : 'navigation-container__section';
@@ -315,6 +318,23 @@ const UserNavSection = connectToFlags(FLAGS.AUTH_ENABLED, FLAGS.OPENSHIFT)(({fla
   </NavSection>;
 });
 
+const CrdLinks = connect(({CRD}) => ({sortedCrds: CRD.getIn(['sortedCrds'])}))(
+  ({sortedCrds, closeMenu, canListCrd}) => {
+    if (!sortedCrds) {
+      return null;
+    }
+    // const splitKind = (kind) => {
+    //   return kind.match(/[A-Z][a-z]+/g).join(" ");
+    // }
+    const namespacedCrds = _.map(sortedCrds.namespaced, crd =>  <ResourceNSLink resource={crd.spec.names.plural} name={crd.spec.names.kind} onClick={closeMenu} key={_.uniqueId()} /> );
+    const clustreCrds = _.map(sortedCrds.cluster, crd =>  <ResourceClusterLink resource={crd.spec.names.plural} name={crd.spec.names.kind} onClick={closeMenu} required={FLAGS.CAN_LIST_STORE} key={_.uniqueId()} />);
+    return <NavSection text="CRDs" icon="fa fa-plug" required={canListCrd} >
+      { namespacedCrds }
+      <Sep />
+      { clustreCrds }
+    </NavSection>
+  });
+
 export class Nav extends React.Component {
   constructor (props) {
     super(props);
@@ -371,12 +391,6 @@ export class Nav extends React.Component {
       <div id="sidebar" className={classNames({'open': isOpen})}>
         <ClusterPickerNavSection />
         <div ref={this.scroller} onWheel={this.preventScroll} className="navigation-container">
-
-
-          <NavSection text="CRDs" icon="fa fa-plug" required={FLAGS.CAN_LIST_CRD} >
-            <ResourceNSLink resource="secrets" name="Secrets" onClick={this.close} />
-          </NavSection>
-
 
           <NavSection text="Home" icon="pficon pficon-home">
             <HrefLink href="/status" name="Status" activePath="/status/" onClick={this.close} />
@@ -435,6 +449,8 @@ export class Nav extends React.Component {
           </NavSection>
 
           <MonitoringNavSection closeMenu={this.close} />
+
+          <CrdLinks closeMenu={this.close} canListCrd={FLAGS.CAN_LIST_CRD} />
 
           <NavSection text="Administration" icon="fa fa-cog">
             <ResourceClusterLink resource="projects" name="Projects" onClick={this.close} required={FLAGS.OPENSHIFT} />
