@@ -2,9 +2,11 @@
 // import { Map as ImmutableMap } from 'immutable';
 import { CustomResourceDefinitionModel } from '../../models';
 import { k8sList } from '../k8s/resource';
+import { referenceForCRD } from '../k8s';
 import { getActiveNamespace } from '../../ui/ui-actions'
+import { ALL_NAMESPACES_KEY } from '../../const';
 
-export const formatNamespacedRouteForResource = (resource, activeNamespace=getActiveNamespace()) => {
+export const formatNamespacedRouteForCrd = (crd, activeNamespace=getActiveNamespace()) => {
   const crdRef = referenceForCRD(crd)
   return activeNamespace === ALL_NAMESPACES_KEY
     ? `/k8s/all-namespaces/customresourcedefinitions/${crdRef}`

@@ -8,8 +8,9 @@ import * as PropTypes from 'prop-types';
 import { FLAGS, connectToFlags, featureReducerName, flagPending } from '../features';
 import { MonitoringRoutes, connectToURLs } from '../monitoring';
 import { formatNamespacedRouteForResource } from '../ui/ui-actions';
+import { formatNamespacedRouteForCrd } from '../module/crd/crd-actions';
 import { BuildConfigModel, BuildModel, ClusterServiceVersionModel, DeploymentConfigModel, ImageStreamModel, SubscriptionModel, InstallPlanModel, CatalogSourceModel } from '../models';
-import { referenceForModel } from '../module/k8s';
+import { referenceForModel, referenceForCRD } from '../module/k8s';
 import { authSvc } from '../module/auth';
 
 import { ClusterPicker } from './cluster-picker';
@@ -318,6 +319,45 @@ const UserNavSection = connectToFlags(FLAGS.AUTH_ENABLED, FLAGS.OPENSHIFT)(({fla
   </NavSection>;
 });
 
+
+class CrdNSLink extends NavLink {
+  static isActive (props, resourcePath, activeNamespace) {
+    const href = stripNS(formatNamespacedRouteForCrd(props.resource, activeNamespace));
+    return matchesPath(resourcePath, href) || matchesModel(resourcePath, props.model);
+  }
+
+  get to () {
+    const { resource, activeNamespace } = this.props;
+    return formatNamespacedRouteForCrd(resource, activeNamespace);
+  }
+}
+
+// ResourceNSLink.propTypes = {
+//   name: PropTypes.string.isRequired,
+//   startsWith: PropTypes.arrayOf(PropTypes.string),
+//   resource: PropTypes.string.isRequired,
+//   model: PropTypes.object,
+//   activeNamespace: PropTypes.string,
+// };
+
+class CrdClusterLink extends NavLink {
+  static isActive (props, resourcePath) {
+    return resourcePath === props.resource || _.startsWith(resourcePath, `${props.resource}/`);
+  }
+
+  get to () {
+    return `/k8s/cluster/${referenceForCRD(this.props.resource)}`;
+  }
+}
+
+// ResourceClusterLink.propTypes = {
+//   name: PropTypes.string.isRequired,
+//   startsWith: PropTypes.arrayOf(PropTypes.string),
+//   resource: PropTypes.string.isRequired,
+// };
+
+
+
 const CrdLinks = connect(({CRD}) => ({sortedCrds: CRD.getIn(['sortedCrds'])}))(
   ({sortedCrds, closeMenu, canListCrd}) => {
     if (!sortedCrds) {
@@ -326,8 +366,8 @@ const CrdLinks = connect(({CRD}) => ({sortedCrds: CRD.getIn(['sortedCrds'])}))(
     // const splitKind = (kind) => {
     //   return kind.match(/[A-Z][a-z]+/g).join(" ");
     // }
-    const namespacedCrds = _.map(sortedCrds.namespaced, crd =>  <ResourceNSLink resource={crd.spec.names.plural} name={crd.spec.names.kind} onClick={closeMenu} key={_.uniqueId()} /> );
-    const clustreCrds = _.map(sortedCrds.cluster, crd =>  <ResourceClusterLink resource={crd.spec.names.plural} name={crd.spec.names.kind} onClick={closeMenu} required={FLAGS.CAN_LIST_STORE} key={_.uniqueId()} />);
+    const namespacedCrds = _.map(sortedCrds.namespaced, crd =>  <CrdNSLink resource={crd} name={crd.spec.names.kind} onClick={closeMenu} key={_.uniqueId()} /> );
+    const clustreCrds = _.map(sortedCrds.cluster, crd =>  <CrdClusterLink resource={crd} name={crd.spec.names.kind} onClick={closeMenu} required={FLAGS.CAN_LIST_STORE} key={_.uniqueId()} />);
     return <NavSection text="CRDs" icon="fa fa-plug" required={canListCrd} >
       { namespacedCrds }
       <Sep />
