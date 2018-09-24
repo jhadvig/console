@@ -164,7 +164,7 @@ const NavSection = connect(navSectionStateToProps)(
       const resourcePath = location ? stripNS(location) : '';
 
       return children.filter(c => {
-        if (!c) {
+        if (!c.props) {
           return false;
         }
         if (c.props.startsWith) {
@@ -314,6 +314,35 @@ const UserNavSection = connectToFlags(FLAGS.AUTH_ENABLED, FLAGS.OPENSHIFT)(({fla
   </NavSection>;
 });
 
+const addToSection = async (close) => {
+  const test = () => {
+    return <ResourceNSLink model={InstallPlanModel} resource={InstallPlanModel.plural} name="Install Plans 2" onClick={close} />
+  }
+  return await setTimeout(test, 2000);
+}
+
+class CrdNSLink extends NavLink {
+  static isActive (props, resourcePath, activeNamespace) {
+    const href = stripNS(formatNamespacedRouteForCrd(props.resource, activeNamespace));
+    return matchesPath(resourcePath, href) || matchesModel(resourcePath, props.model);
+  }
+
+  get to () {
+    const { resource, activeNamespace } = this.props;
+    return formatNamespacedRouteForCrd(resource, activeNamespace);
+  }
+}
+
+class CrdClusterLink extends NavLink {
+  static isActive (props, resourcePath) {
+    return resourcePath === props.resource || _.startsWith(resourcePath, `${props.resource}/`);
+  }
+
+  get to () {
+    return `/k8s/cluster/${referenceForCRD(this.props.resource)}`;
+  }
+}
+
 export class Nav extends React.Component {
   constructor (props) {
     super(props);
@@ -375,6 +404,7 @@ export class Nav extends React.Component {
             <HrefLink href="/catalog" name="Catalog" activePath="/catalog/" onClick={this.close} />
             <HrefLink href="/search" name="Search" onClick={this.close} startsWith={searchStartsWith} />
             <ResourceNSLink resource="events" name="Events" onClick={this.close} />
+            
           </NavSection>
 
           <NavSection required={FLAGS.OPERATOR_LIFECYCLE_MANAGER} text="Operators" img={operatorImg} activeImg={operatorActiveImg} >
