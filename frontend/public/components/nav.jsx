@@ -19,6 +19,7 @@ import * as operatorActiveImg from '../imgs/operator-active.svg';
 import * as routingImg from '../imgs/routing.svg';
 import * as routingActiveImg from '../imgs/routing-active.svg';
 import { history, stripBasePath } from './utils';
+import { ALL_NAMESPACES_KEY } from '../const';
 
 export const matchesPath = (resourcePath, prefix) => resourcePath === prefix || _.startsWith(resourcePath, `${prefix}/`);
 export const matchesModel = (resourcePath, model) => model && matchesPath(resourcePath, referenceForModel(model));
@@ -114,14 +115,38 @@ HrefLink.propTypes = {
   href: PropTypes.string.isRequired,
 };
 
+class CrdNSLink extends NavLink {
+  static isActive (props, resourcePath, activeNamespace) {
+    const href = stripNS(formatNamespacedRouteForCrd(props.resource, activeNamespace));
+    return matchesPath(resourcePath, href) || matchesModel(resourcePath, props.model);
+  }
+
+  get to () {
+    const { resource, activeNamespace } = this.props;
+    return formatNamespacedRouteForCrd(resource, activeNamespace);
+  }
+}
+
+class CrdClusterLink extends NavLink {
+  static isActive (props, resourcePath) {
+    return resourcePath === props.resource || _.startsWith(resourcePath, `${props.resource}/`);
+  }
+
+  get to () {
+    return `/k8s/cluster/${referenceForCRD(this.props.resource)}`;
+  }
+}
+
 const navSectionStateToProps = (state, {required}) => {
   const flags = state[featureReducerName];
   const canRender = required ? flags.get(required) : true;
+  let promotedCrds = state.k8s.getIn(['consoleextensions', 'data']);
 
   return {
     flags, canRender,
     activeNamespace: state.UI.get('activeNamespace'),
     location: state.UI.get('location'),
+    promotedCrds: promotedCrds,
   };
 };
 
@@ -155,7 +180,8 @@ const NavSection = connect(navSectionStateToProps)(
     }
 
     getActiveChild () {
-      const { activeNamespace, location, children } = this.props;
+      const { activeNamespace, location } = this.props;
+      const children = React.Children.toArray(this.props.children);
 
       if (!children) {
         return stripBasePath(location).startsWith(this.props.activePath);
@@ -219,7 +245,8 @@ const NavSection = connect(navSectionStateToProps)(
       // we could use scaleY, but that literally scales along the Y axis, ie shrinks
       // we could use flexbox or the equivalent to get an actual height, but this is the easiest solution :-/
 
-      const maxHeight = !this.state.isOpen ? 0 : 29 * _.get(this.props.children, 'length', 1);
+      const childrenArray = React.Children.toArray(this.props.children);
+      const maxHeight = !this.state.isOpen ? 0 : 29 * _.get(childrenArray, 'length', 1);
 
       const iconClassName = icon && `${icon} navigation-container__section__title__icon ${isActive ? 'navigation-container__section__title__icon--active' : ''}`;
       const sectionClassName = isActive && href ? 'navigation-container__section navigation-container__section--active' : 'navigation-container__section';
@@ -238,6 +265,19 @@ const NavSection = connect(navSectionStateToProps)(
         return React.cloneElement(c, {key: name, isActive: name === this.state.activeChild, activeNamespace});
       });
 
+      if (!_.isEmpty(_.get(this,['props', 'promotedCrds']))){
+        const consoleExtensions = this.props.promotedCrds.toArray().map(p => p.toJSON());
+        _.each(consoleExtensions, (ce) => {
+          if (ce.spec.navExtension.navSection === this.props.text) {
+            const link = ce.spec.scope === 'Namespaced'
+              ? formatNamespacedRouteForCrd(ce.spec.reference, activeNamespace)
+              : `/k8s/cluster/${ce.spec.reference}`;
+            Children.push(<HrefLink href={link} name={ce.spec.navExtension.displayName} key={ce.spec.reference} />);
+            // Children.push(<CrdNSLink resource={ce} name={ce.spec.names.kind} key={_.uniqueId()} />);
+          }
+        })
+      }
+
       return <div className={classNames(sectionClassName, klass)}>
         <div id={id} className="navigation-container__section__title" onClick={this.toggle}>
           {icon && <i className={iconClassName} aria-hidden="true"></i>}
@@ -252,6 +292,12 @@ const NavSection = connect(navSectionStateToProps)(
     }
   }
 );
+
+export const formatNamespacedRouteForCrd = (crdRef, activeNamespace=getActiveNamespace()) => {
+  return activeNamespace === ALL_NAMESPACES_KEY
+    ? `/k8s/all-namespaces/customresourcedefinitions/${crdRef}`
+    : `/k8s/ns/${activeNamespace}/customresourcedefinitions/${crdRef}`;
+};
 
 const Sep = () => <div className="navigation-container__section__separator" />;
 
@@ -319,28 +365,6 @@ const addToSection = async (close) => {
     return <ResourceNSLink model={InstallPlanModel} resource={InstallPlanModel.plural} name="Install Plans 2" onClick={close} />
   }
   return await setTimeout(test, 2000);
-}
-
-class CrdNSLink extends NavLink {
-  static isActive (props, resourcePath, activeNamespace) {
-    const href = stripNS(formatNamespacedRouteForCrd(props.resource, activeNamespace));
-    return matchesPath(resourcePath, href) || matchesModel(resourcePath, props.model);
-  }
-
-  get to () {
-    const { resource, activeNamespace } = this.props;
-    return formatNamespacedRouteForCrd(resource, activeNamespace);
-  }
-}
-
-class CrdClusterLink extends NavLink {
-  static isActive (props, resourcePath) {
-    return resourcePath === props.resource || _.startsWith(resourcePath, `${props.resource}/`);
-  }
-
-  get to () {
-    return `/k8s/cluster/${referenceForCRD(this.props.resource)}`;
-  }
 }
 
 export class Nav extends React.Component {

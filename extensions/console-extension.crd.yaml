@@ -7,9 +7,9 @@ metadata:
     description: Extension for configuring openshift web console.
 spec:
   group: config.openshift.io
-  version: v1alpha1
+  version: v1
   versions:
-  - name: v1alpha1
+  - name: v1
     served: true
     storage: true
   scope: Cluster
@@ -32,25 +32,19 @@ spec:
           type: object
           description: Represents console extension spec
           required:
-          - navExtensions
+          - navExtension
+          - reference
+          - scope
           properties:
-            displayName:
-              type: string
-              description: Pretty name for display
-            navExtensions:
+            navExtension:
               type: object
               description: Object that holds navigation bar extensions
               required:
                 - navSection
               properties:
-                crdName:
+                displayName:
                   type: string
                   description: Name of the CRD
-                crdScope:
-                  type: string
-                  enum:
-                  - Namespaced
-                  - Cluster
                 navSection:
                   type: string
                   description: Navigation section where the CRD should be placed
@@ -64,4 +58,11 @@ spec:
                   - Service Catalog
                   - Monitoring
                   - Administration
-
+            reference:
+              type: string
+              description: Reference of the CRD
+            scope:
+              type: string
+              enum:
+              - Namespaced
+              - Cluster

@@ -221,6 +221,7 @@ class App extends React.PureComponent {
 
 _.each(featureActions, store.dispatch);
 store.dispatch(k8sActions.watchAPIServices());
+store.dispatch(k8sActions.watchConsoleExtensions());
 store.dispatch(detectMonitoringURLs);
 
 analyticsSvc.push({tier: 'tectonic'});

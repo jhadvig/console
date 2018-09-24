@@ -3,7 +3,7 @@
 import { getResources as getResources_ } from './get-resources';
 import { k8sList, k8sWatch, k8sGet } from './resource';
 import { makeReduxID } from '../../components/utils/k8s-watcher';
-import { APIServiceModel } from '../../models';
+import { APIServiceModel, ConsoleExtensionModel } from '../../models';
 import { coFetchJSON } from '../../co-fetch';
 
 const types = {
@@ -34,6 +34,7 @@ const REF_COUNTS = {};
 const nop = () => {};
 const paginationLimit = 250;
 const apiGroups = 'apiGroups';
+const consoleExtensions = 'consoleExtensions';
 
 const actions = {
   [types.updateListFromWS]: action_(types.updateListFromWS),
@@ -65,6 +66,15 @@ const actions = {
         POLLs[apiGroups] = setInterval(poller, 30 * 1000);
         poller();
       });
+  },
+
+  watchConsoleExtensions: () => (dispatch, getState) => {
+    if (getState().k8s.has('apiservices') || POLLs[consoleExtensions]) {
+      return;
+    }
+    dispatch({type: types.getResourcesInFlight});
+    k8sList(ConsoleExtensionModel, {})
+      .then(() => dispatch(actions.watchK8sList(makeReduxID(ConsoleExtensionModel, {}), {}, ConsoleExtensionModel, actions.getResources)));
   },
 
   getResources: () => dispatch => {

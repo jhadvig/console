@@ -9,21 +9,22 @@ import { promoteCrdModal } from './modals'
 
 const { common } = Cog.factory;
 
-const PromoteCRD = (crd) => ({
-  label: 'Promote CRD',
-  callback: (crd) => promoteCrdModal({
+const PromoteCRD = (kind, crd) => ({
+  label: 'Promote Custom Recource Definition',
+  callback: () => promoteCrdModal({
     title: 'Promote CRD',
-    message: 'Select navigation bar section',
     btnText: 'Promote',
-    executeFn: () => {
-      return crd;
-    }
+    kind: kind,
+    crd: crd,
+    // executeFn: () => {
+    //   return crd;
+    // }
   }),
 });
 
 const menuActions = [
-  PromoteCRD,
   ...common,
+  PromoteCRD,
 ];
 
 const CRDHeader = props => <ListHeader>

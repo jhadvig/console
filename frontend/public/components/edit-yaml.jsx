@@ -73,6 +73,10 @@ export const EditYAML = connect(stateToProps)(
 
     getModel(obj) {
       const { models } = this.props;
+      const ref = referenceFor(obj);
+      const ext = models.get('config.openshift.io:v1:ConsoleExtensionList');
+      const test = models.get(referenceFor(obj));
+      const test2 = models.get(obj.kind);
       return models.get(referenceFor(obj)) || models.get(obj.kind);
     }
 
