@@ -1,5 +1,6 @@
 import * as _ from 'lodash-es';
 import * as React from 'react';
+import { connect } from 'react-redux';
 
 import { ColHead, DetailsPage, List, ListHeader, ListPage } from './factory';
 import { fromNow } from './utils/datetime';
@@ -19,11 +20,36 @@ import {
 
 const menuActions = [Cog.factory.ModifyLabels, Cog.factory.ModifyAnnotations, Cog.factory.Edit, Cog.factory.Delete];
 
-const Header = props => <ListHeader>
-  <ColHead {...props} className="col-xs-6 col-sm-4" sortField="metadata.name">Name</ColHead>
-  <ColHead {...props} className="col-xs-6 col-sm-4" sortField="metadata.namespace">Namespace</ColHead>
-  <ColHead {...props} className="col-sm-4 hidden-xs" sortField="metadata.creationTimestamp">Created</ColHead>
-</ListHeader>;
+const Header = props => {
+  console.log(props)
+  return <ListHeader>
+    <ColHead {...props} className="col-xs-6 col-sm-4" sortField="metadata.name">Name</ColHead>
+    <ColHead {...props} className="col-xs-6 col-sm-4" sortField="metadata.namespace">Namespace</ColHead>
+    <ColHead {...props} className="col-sm-4 hidden-xs" sortField="metadata.creationTimestamp">Created</ColHead>
+  </ListHeader>;
+};
+
+const CustomHeader_ = props => {
+  console.log(props)
+  const columnsExtension = _.get(props, ['consoleExtensions'])[0].spec.additionalPrinterColumns;
+  const columnsNumber = _.size(columnsExtension) + 1;
+  const columnsSize = Math.floor(12 / columnsNumber);
+  const builtColumns = _.map(columnsExtension, ext => {
+    return <ColHead {...props} key={_.uniqueId()} className={"col-xs-" + columnsSize} sortField={ext.JSONPath.substr(1)}>{ext.name}</ColHead>
+  })
+  return <ListHeader>
+    <ColHead {...props} className={"col-xs-" + columnsSize} sortField="metadata.name">Name</ColHead>
+    {builtColumns}
+  </ListHeader>;
+};
+
+const stateToProps = ({k8s}) => {
+  const consoleExtensions = k8s.getIn(['consoleextensions', 'data']).toArray().map(p => p.toJSON());
+  return {consoleExtensions};
+}
+
+const CustomHeader = connect(stateToProps)(CustomHeader_);
+
 
 const RowForKind = kind => function RowForKind_ ({obj}) {
   return <div className="row co-resource-list__item">
@@ -52,16 +78,46 @@ const DetailsForKind = kind => function DetailsForKind_ ({obj}) {
   </React.Fragment>;
 };
 
-export const DefaultList = props => {
+const DefaultList_ = props => {
   const { kinds } = props;
+
+  let additionalColumns =  [];
+  let extension = {};
+  _.each(props.consoleExtensions, ext => {
+    if (ext.spec.reference === props.kinds[0]) {
+      additionalColumns = ext.spec.additionalPrinterColumns;
+      extension = ext;
+    }
+  });
+
   const Row = RowForKind(kinds[0]);
   Row.displayName = 'RowForKind';
-  return <List {...props} Header={Header} Row={Row} />;
+  return <List {...props} Header={Header} Row={Row} />; 
+
+  // if (_.isEmpty(additionalColumns)) {
+  //   const Row = RowForKind(kinds[0]);
+  //   Row.displayName = 'RowForKind';
+  //   return <List {...props} Header={Header} Row={Row} />; 
+  // }
+  // // const customHeader = <CustomHeader {...props} />;
+  // const Row = RowForKind(kinds[0]);
+  // Row.displayName = 'RowForKind';
+  // return <List {...props} Header={CustomHeader} Row={Row} />;  
 };
+
+const consoleExtensionsStateToProps = ({k8s}) => {
+  const consoleExtensions = k8s.getIn(['consoleextensions', 'data']).toArray().map(p => p.toJSON());
+  return {consoleExtensions};
+}
+
+export const DefaultList = connect(consoleExtensionsStateToProps)(DefaultList_);
+
 DefaultList.displayName = DefaultList;
 
-export const DefaultPage = props =>
-  <ListPage {...props} ListComponent={DefaultList} canCreate={props.canCreate || _.get(kindObj(props.kind), 'crd')} />;
+export const DefaultPage = props => {
+  return <ListPage {...props} ListComponent={DefaultList} canCreate={props.canCreate || _.get(kindObj(props.kind), 'crd')} />;
+}
+
 DefaultPage.displayName = 'DefaultPage';
 
 
