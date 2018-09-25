@@ -66,3 +66,24 @@ spec:
               enum:
               - Namespaced
               - Cluster
+            additionalPrinterColumns:
+              type: array
+              description: additional printed columns
+              items:
+                type: object
+                required:
+                  - name
+                  - type
+                  - JSONPath
+                description: a single printed column description
+                properties:
+                  name:
+                    type: string
+                  type:
+                    type: string
+                  description:
+                    type: string
+                  JSONPath:
+                    type: string
+                  priority:
+                    type: integer

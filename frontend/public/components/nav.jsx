@@ -246,12 +246,32 @@ const NavSection = connect(navSectionStateToProps)(
       // we could use flexbox or the equivalent to get an actual height, but this is the easiest solution :-/
 
       const childrenArray = React.Children.toArray(this.props.children);
+
+      let addSeparator = true;
+
+      if (!_.isEmpty(_.get(this,['props', 'promotedCrds']))){
+        const consoleExtensions = this.props.promotedCrds.toArray().map(p => p.toJSON());
+        _.each(consoleExtensions, (ce) => {
+          if (ce.spec.navExtension.navSection === this.props.text) {
+            if (addSeparator) {
+              childrenArray.push(<Sep />);
+              addSeparator = false;
+            } 
+            const link = ce.spec.scope === 'Namespaced'
+              ? formatNamespacedRouteForCrd(ce.spec.reference, activeNamespace)
+              : `/k8s/cluster/${ce.spec.reference}`;
+            childrenArray.push(<HrefLink href={link} name={ce.spec.navExtension.displayName} key={ce.spec.reference} />);
+            // Children.push(<CrdNSLink resource={ce} name={ce.spec.names.kind} key={_.uniqueId()} />);
+          }
+        })
+      }
+
       const maxHeight = !this.state.isOpen ? 0 : 29 * _.get(childrenArray, 'length', 1);
 
       const iconClassName = icon && `${icon} navigation-container__section__title__icon ${isActive ? 'navigation-container__section__title__icon--active' : ''}`;
       const sectionClassName = isActive && href ? 'navigation-container__section navigation-container__section--active' : 'navigation-container__section';
 
-      const Children = React.Children.map(children, c => {
+      const Children = React.Children.map(childrenArray, c => {
         if (!c) {
           return null;
         }
@@ -264,19 +284,6 @@ const NavSection = connect(navSectionStateToProps)(
         }
         return React.cloneElement(c, {key: name, isActive: name === this.state.activeChild, activeNamespace});
       });
-
-      if (!_.isEmpty(_.get(this,['props', 'promotedCrds']))){
-        const consoleExtensions = this.props.promotedCrds.toArray().map(p => p.toJSON());
-        _.each(consoleExtensions, (ce) => {
-          if (ce.spec.navExtension.navSection === this.props.text) {
-            const link = ce.spec.scope === 'Namespaced'
-              ? formatNamespacedRouteForCrd(ce.spec.reference, activeNamespace)
-              : `/k8s/cluster/${ce.spec.reference}`;
-            Children.push(<HrefLink href={link} name={ce.spec.navExtension.displayName} key={ce.spec.reference} />);
-            // Children.push(<CrdNSLink resource={ce} name={ce.spec.names.kind} key={_.uniqueId()} />);
-          }
-        })
-      }
 
       return <div className={classNames(sectionClassName, klass)}>
         <div id={id} className="navigation-container__section__title" onClick={this.toggle}>

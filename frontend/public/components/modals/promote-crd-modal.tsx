@@ -10,6 +10,7 @@ import { PromiseComponent, Dropdown } from '../utils';
 
 const constructConsoleExtensionInstance = (crd, navSection) => {
   const displayName = _.get(crd, ['metadata', 'annotations', 'displayName'], crd.spec.names.kind);
+  const additionalPrinterColumns = _.get(crd, ['spec', 'additionalPrinterColumns'], []);
   return {
   "apiVersion": "config.openshift.io/v1",
   "kind": "ConsoleExtension",
@@ -23,6 +24,7 @@ const constructConsoleExtensionInstance = (crd, navSection) => {
     },
     "scope": crd.spec.scope,
     "reference": referenceForCRD(crd),
+    "additionalPrinterColumns": additionalPrinterColumns,
   }
 }
 };
@@ -30,9 +32,15 @@ const constructConsoleExtensionInstance = (crd, navSection) => {
 export class PromoteCrdModal extends PromiseComponent {
   constructor(props) {
     super(props);
-    this.state.section = 'Home',
+
+    this.state = Object.assign(this.state, {
+      section: 'Home',
+      displayName: this.props.crd.spec.names.kind,
+    });
+
     this._submit = this._submit.bind(this);
     this._onSectionChange = this._onSectionChange.bind(this);
+    this._onDisplayNameChange = this._onDisplayNameChange.bind(this);
   }
   _submit(event) {
     event.preventDefault();
@@ -42,6 +50,11 @@ export class PromoteCrdModal extends PromiseComponent {
   _onSectionChange(section) {
     this.setState({
       section: section
+    })
+  }
+  _onDisplayNameChange(event) {
+    this.setState({
+      displayName: event.target.value
     })
   }
   render() {
@@ -62,9 +75,25 @@ export class PromoteCrdModal extends PromiseComponent {
     return <form onSubmit={this._submit} name="form">
       <ModalTitle>{this.props.title}</ModalTitle>
       <ModalBody>
-        {this.props.message}
-        Select navigation bar section where the <b>{this.props.crd.spec.names.kind}</b> should be placed.
-        <Dropdown title="Home" items={sectionsObject} dropDownClassName="dropdown--full-width" id="dropdown-selectbox" onChange={this._onSectionChange} />
+        <div className="form-group">
+          <label className="control-label" htmlFor="display-name">Display Name</label>
+          <div>
+            <input className="form-control"
+              id="display-name"
+              aria-describedby="display-name-help"
+              type="text"
+              name="display-name"
+              onChange={this._onDisplayNameChange}
+              value={this.state.displayName} />
+            <p className="help-block" id="display-name-help">Name to display <b>{this.props.crd.spec.names.kind}</b> in the navigation bar</p>
+          </div>
+        </div>
+        <div className="form-group">
+          {this.props.message}
+          <label className="control-label" htmlFor="secret-type">Navigation Section</label>.
+          <Dropdown title="Home" items={sectionsObject} dropDownClassName="dropdown--full-width" id="dropdown-selectbox" onChange={this._onSectionChange} />
+          <p className="help-block">Select navigation bar section where the <b>{this.props.crd.spec.names.kind}</b> should be placed.</p>
+        </div>
       </ModalBody>
       <ModalSubmitFooter errorMessage={this.state.errorMessage} inProgress={this.state.inProgress} submitText={this.props.btnText || 'Confirm'} cancel={this.props.cancel.bind(this)} />
     </form>;
