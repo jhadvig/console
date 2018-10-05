@@ -96,7 +96,13 @@ export const k8sList = (kind, params={}, raw=false, options = {}) => {
   }).join('&');
 
   const listURL = resourceURL(kind, {ns: params.ns});
-  return coFetchJSON(`${listURL}?${query}`, 'GET', options).then(result => raw ? result : result.items);
+  return coFetchJSON(`${listURL}?${query}`, 'GET', options).then(result =>  {
+    return raw ? result : result.items
+  });
+};
+
+export const k8sListTableColumns = (kind, params = {}, raw = true) => {
+  return k8sList(kind, params, raw, {headers: {Accept: 'application/json;as=Table;v=v1beta1;g=meta.k8s.io,application/json'}});
 };
 
 export const k8sListPartialMetadata = (kind, params = {}, raw = false) => {

@@ -4,7 +4,8 @@ import { connect } from 'react-redux';
 
 import { ColHead, DetailsPage, List, ListHeader, ListPage } from './factory';
 import { fromNow } from './utils/datetime';
-import { referenceFor, kindForReference } from '../module/k8s';
+import { CatalogSourceModel } from '../models'
+import { referenceFor, kindForReference, k8sListTableColumns } from '../module/k8s';
 import { ResourceOverviewHeading } from './overview';
 import { connectToModel } from '../kinds';
 import {
@@ -17,6 +18,75 @@ import {
   SectionHeading
 } from './utils';
 
+const table = {  
+   "kind":"Table",
+   "apiVersion":"meta.k8s.io/v1beta1",
+   "metadata":{  
+      "selfLink":"/apis/operators.coreos.com/v1alpha1/namespaces/kube-system/catalogsources",
+      "resourceVersion":"1013494"
+   },
+   "columnDefinitions":[  
+      {  
+         "name":"Name",
+         "type":"string",
+         "format":"name",
+         "description":"Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/identifiers#names",
+         "priority":0
+      },
+      {  
+         "name":"Name",
+         "type":"string",
+         "format":"",
+         "description":"The pretty name of the catalog",
+         "priority":0
+      },
+      {  
+         "name":"Type",
+         "type":"string",
+         "format":"",
+         "description":"The type of the catalog",
+         "priority":0
+      },
+      {  
+         "name":"Publisher",
+         "type":"string",
+         "format":"",
+         "description":"The publisher of the catalog",
+         "priority":0
+      },
+      {  
+         "name":"Age",
+         "type":"date",
+         "format":"",
+         "description":"Custom resource definition column (in JSONPath format): .metadata.creationTimestamp",
+         "priority":0
+      }
+   ],
+   "rows":[  
+      {  
+         "cells":[  
+            "ocs",
+            "Open Cloud Services",
+            "internal",
+            "Red Hat",
+            "15d"
+         ],
+         "object":{  
+            "kind":"PartialObjectMetadata",
+            "apiVersion":"meta.k8s.io/v1beta1",
+            "metadata":{  
+               "name":"ocs",
+               "namespace":"kube-system",
+               "selfLink":"/apis/operators.coreos.com/v1alpha1/namespaces/kube-system/catalogsources/ocs",
+               "uid":"f408a24b-bb70-11e8-9f9b-28d244898468",
+               "resourceVersion":"17486",
+               "generation":1,
+               "creationTimestamp":"2018-09-18T18:30:43Z"
+            }
+         }
+      }
+   ]
+}
 
 const menuActions = [Cog.factory.ModifyLabels, Cog.factory.ModifyAnnotations, Cog.factory.Edit, Cog.factory.Delete];
 
@@ -88,6 +158,10 @@ const DefaultList_ = props => {
       additionalColumns = ext.spec.additionalPrinterColumns;
       extension = ext;
     }
+  });
+
+  k8sListTableColumns(CatalogSourceModel, {ns: 'kube-system'}).then((obj) => {
+    console.log(obj);
   });
 
   const Row = RowForKind(kinds[0]);

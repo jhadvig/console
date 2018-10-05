@@ -3,7 +3,7 @@
 import { getResources as getResources_ } from './get-resources';
 import { k8sList, k8sWatch, k8sGet } from './resource';
 import { makeReduxID } from '../../components/utils/k8s-watcher';
-import { APIServiceModel, ConsoleExtensionModel } from '../../models';
+import { APIServiceModel, ConsoleExtensionModel, SecretModel, PodModel } from '../../models';
 import { coFetchJSON } from '../../co-fetch';
 
 const types = {
@@ -73,6 +73,10 @@ const actions = {
       return;
     }
     dispatch({type: types.getResourcesInFlight});
+
+    k8sList(ConsoleExtensionModel, {ns: 'default'}, true, {headers: {Accept: 'application/json;as=Table;v=v1beta1;g=meta.k8s.io, application/json'}}).then((obj) => {
+      console.log(obj);
+    });
     k8sList(ConsoleExtensionModel, {})
       .then(() => dispatch(actions.watchK8sList(makeReduxID(ConsoleExtensionModel, {}), {}, ConsoleExtensionModel, actions.getResources)));
   },

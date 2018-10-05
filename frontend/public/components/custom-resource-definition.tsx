@@ -27,13 +27,15 @@ const menuActions = [
   PromoteCRD,
 ];
 
-const CRDHeader = props => <ListHeader>
-  <ColHead {...props} className="col-lg-4 col-md-4 col-sm-4 col-xs-6" sortField="spec.names.kind">Name</ColHead>
-  <ColHead {...props} className="col-lg-3 col-md-4 col-sm-4 col-xs-6" sortField="spec.group">Group</ColHead>
-  <ColHead {...props} className="col-lg-2 col-md-2 col-sm-4 hidden-xs" sortField="spec.version">Version</ColHead>
-  <ColHead {...props} className="col-lg-2 col-md-2 hidden-sm hidden-xs" sortField="spec.scope">Namespaced</ColHead>
-  <ColHead {...props} className="col-lg-1 hidden-md hidden-sm hidden-xs">Established</ColHead>
-</ListHeader>;
+const CRDHeader = props => {
+  return <ListHeader>
+    <ColHead {...props} className="col-lg-4 col-md-4 col-sm-4 col-xs-6" sortField="spec.names.kind">Name</ColHead>
+    <ColHead {...props} className="col-lg-3 col-md-4 col-sm-4 col-xs-6" sortField="spec.group">Group</ColHead>
+    <ColHead {...props} className="col-lg-2 col-md-2 col-sm-4 hidden-xs" sortField="spec.version">Version</ColHead>
+    <ColHead {...props} className="col-lg-2 col-md-2 hidden-sm hidden-xs" sortField="spec.scope">Namespaced</ColHead>
+    <ColHead {...props} className="col-lg-1 hidden-md hidden-sm hidden-xs">Established</ColHead>
+  </ListHeader>
+};
 
 const isEstablished = conditions => {
   const condition = _.find(conditions, c => c.type === 'Established');
