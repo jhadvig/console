@@ -4,7 +4,7 @@ import { connect } from 'react-redux';
 
 import { ColHead, DetailsPage, List, ListHeader, ListPage } from './factory';
 import { fromNow } from './utils/datetime';
-import { CatalogSourceModel } from '../models'
+import { ConsoleExtensionModel } from '../models'
 import { referenceFor, kindForReference, k8sListTableColumns } from '../module/k8s';
 import { ResourceOverviewHeading } from './overview';
 import { connectToModel } from '../kinds';
@@ -92,10 +92,17 @@ const menuActions = [Cog.factory.ModifyLabels, Cog.factory.ModifyAnnotations, Co
 
 const Header = props => {
   console.log(props)
+
+  const columnsExtension = _.get(table, 'columnDefinitions');
+  const columnsNumber = _.size(columnsExtension);
+  const columnsSize = Math.floor(12 / columnsNumber);
+  const fistColumnSize = 12 - (columnsSize * (columnsNumber-1));
+  const heads = _.map(table.columnDefinitions, (column, index) => {
+    const size = index === 0 ? fistColumnSize : columnsSize;
+    return <ColHead {...props} key={_.uniqueId()} className={"col-xs-" + size}>{column.name}</ColHead>
+  });
   return <ListHeader>
-    <ColHead {...props} className="col-xs-6 col-sm-4" sortField="metadata.name">Name</ColHead>
-    <ColHead {...props} className="col-xs-6 col-sm-4" sortField="metadata.namespace">Namespace</ColHead>
-    <ColHead {...props} className="col-sm-4 hidden-xs" sortField="metadata.creationTimestamp">Created</ColHead>
+    {heads}
   </ListHeader>;
 };
 
@@ -139,6 +146,24 @@ const RowForKind = kind => function RowForKind_ ({obj}) {
   </div>;
 };
 
+const RowForTable = table => function RowForKind_ ({obj}) {
+  return <div className="row co-resource-list__item">
+    <div className="col-xs-6 col-sm-4 co-resource-link-wrapper">
+      <ResourceCog actions={menuActions} kind={referenceFor(obj) || kind} resource={obj} />
+      <ResourceLink kind={kind} name={obj.metadata.name} namespace={obj.metadata.namespace} title={obj.metadata.name} />
+    </div>
+    <div className="col-xs-6 col-sm-4 co-break-word">
+      { obj.metadata.namespace
+        ? <ResourceLink kind="Namespace" name={obj.metadata.namespace} title={obj.metadata.namespace} />
+        : 'None'
+      }
+    </div>
+    <div className="col-xs-6 col-sm-4 hidden-xs">
+      { fromNow(obj.metadata.creationTimestamp) }
+    </div>
+  </div>;
+};
+
 const DetailsForKind = kind => function DetailsForKind_ ({obj}) {
   return <React.Fragment>
     <div className="co-m-pane__body">
@@ -160,11 +185,12 @@ const DefaultList_ = props => {
     }
   });
 
-  k8sListTableColumns(CatalogSourceModel, {ns: 'kube-system'}).then((obj) => {
+  k8sListTableColumns(ConsoleExtensionModel, {ns: 'kube-system'}).then((obj) => {
     console.log(obj);
   });
 
   const Row = RowForKind(kinds[0]);
+  // const Row = RowForTable(table.rows);
   Row.displayName = 'RowForKind';
   return <List {...props} Header={Header} Row={Row} />; 
 
