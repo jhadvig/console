@@ -3,6 +3,8 @@ import { history } from '../components/utils/router';
 import { ALL_NAMESPACES_KEY, LAST_NAMESPACE_NAME_LOCAL_STORAGE_KEY } from '../const';
 import { getNSPrefix } from '../components/utils/link';
 import { allModels } from '../module/k8s/k8s-models';
+import { k8sList, k8sListTableColumns } from '../module/k8s/resource';
+import { ConsoleExtensionModel } from '../models';
 
 // URL routes that can be namespaced
 export const namespacedResources = new Set();
@@ -46,8 +48,10 @@ export const formatNamespaceRoute = (activeNamespace, originalPath, location) =>
   }
 
   if ((previousNS !== activeNamespace && (parts[1] !== 'new' || activeNamespace !== ALL_NAMESPACES_KEY)) || activeNamespace === ALL_NAMESPACES_KEY && parts[1] === 'new') {
-    // a given resource will not exist when we switch namespaces, so pop off the tail end
-    parts = parts.slice(0, 1);
+    if (parts[0] !== 'customresourcedefinitions') {
+      // a given resource will not exist when we switch namespaces, so pop off the tail end
+      parts = parts.slice(0, 1);
+    }
   }
 
   const namespacePrefix = activeNamespace === ALL_NAMESPACES_KEY ? 'all-namespaces' : `ns/${activeNamespace}`;
@@ -74,7 +78,7 @@ export const types = {
   setMonitoringData: 'setMonitoringData',
   selectOverviewItem: 'selectOverviewItem',
   selectOverviewDetailsTab: 'selectOverviewDetailsTab',
-  updateOverviewResources: 'updateOverviewResources'
+  updateOverviewResources: 'updateOverviewResources',
 };
 
 /** @type {{[key: string]: function}} */
@@ -91,6 +95,7 @@ export const UIActions = {
     // broken direct links and bookmarks
     if (namespace !== getActiveNamespace()) {
       const oldPath = window.location.pathname;
+      console.log(getNSPrefix(oldPath));
       if (getNSPrefix(oldPath)) {
         history.pushPath(formatNamespaceRoute(namespace, oldPath, window.location));
       }

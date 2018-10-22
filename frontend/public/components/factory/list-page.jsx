@@ -4,11 +4,14 @@ import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
+import store from '../../redux';
 
 import k8sActions from '../../module/k8s/k8s-actions';
+import { UIActions } from '../../ui/ui-actions';
 import { CheckBoxes, storagePrefix } from '../row-filter';
 import { ErrorPage404 } from '../error';
 import { makeReduxID, makeQuery } from '../utils/k8s-watcher';
+import { resourceListPages } from '../resource-pages';
 import { referenceForModel } from '../../module/k8s';
 import {
   Disabled,
@@ -17,6 +20,7 @@ import {
   history,
   inject,
   kindObj,
+  makeReduxID,
   PageHeading
 } from '../utils';
 
@@ -57,6 +61,17 @@ TextFilter.displayName = 'TextFilter';
 
 /** @augments {React.PureComponent<{ListComponent: React.ComponentType<any>, kinds: string[], flatten?: function, data?: any[], rowFilters?: any[]}>} */
 export class ListPageWrapper_ extends React.PureComponent {
+  componentDidMount() {
+    //ToDo: Handle cases where more then one resource kinds are passed to the component.
+    // const model = kindObj(this.props.kinds[0]);
+    // const ref = referenceForModel(model);
+    // if (!resourceListPages.get(ref)) {
+    //   store.dispatch(k8sActions.pollResourceTable(model));
+    // }
+  }
+  componentWillUnmount() {
+    // store.dispatch(k8sActions.stopResourceTablePolling());
+  }
   render () {
     const {kinds, ListComponent, rowFilters, reduxIDs, flatten} = this.props;
     const data = flatten ? flatten(this.props.resources) : [];

@@ -1,10 +1,14 @@
 /* eslint-disable no-unused-vars, no-undef */
 
 import { getResources as getResources_ } from './get-resources';
-import { k8sList, k8sWatch, k8sGet } from './resource';
+import { k8sList, k8sWatch, k8sGet, k8sListTableColumns } from './resource';
+import { ALL_NAMESPACES_KEY } from '../../const';
 import { makeReduxID } from '../../components/utils/k8s-watcher';
 import { APIServiceModel } from '../../models';
 import { coFetchJSON } from '../../co-fetch';
+import { getActiveNamespace } from '../../ui/ui-actions';
+// import { referenceForModel } from './k8s';
+// import { resourceListPages } from '../../components/resource-pages';
 
 const types = {
   resources: 'resources',
@@ -22,6 +26,9 @@ const types = {
   bulkAddToList: 'bulkAddToList',
   filterList: 'filterList',
   updateListFromWS: 'updateListFromWS',
+
+  setResourceTable: 'setResourceTable',
+  unsetResourceTable: 'unsetResourceTable',
 };
 
 type Action = (type: string) => (id: string, k8sObjects: any) => {type: string, id: string, k8sObjects: any};
@@ -33,6 +40,7 @@ const REF_COUNTS = {};
 
 const nop = () => {};
 const paginationLimit = 250;
+const pollingInterval = 30 * 1000;
 const apiGroups = 'apiGroups';
 
 const actions = {
@@ -62,11 +70,27 @@ const actions = {
           dispatch({type: types.setAPIGroups, value: d.groups.length});
         });
 
-        POLLs[apiGroups] = setInterval(poller, 30 * 1000);
+        POLLs[apiGroups] = setInterval(poller, pollingInterval);
         poller();
       });
   },
+  pollResourceTable: (id, k8skind) => dispatch => {
+    const activeNamespace = getActiveNamespace();
+    const params = activeNamespace === ALL_NAMESPACES_KEY ? {} : {ns: activeNamespace};
+    const poller = () => k8sListTableColumns(k8skind, params).then(table => {
+      const isNamespaced = k8skind.namespaced;
+      dispatch({type: types.setResourceTable, id, table, isNamespaced})
+    });
 
+    POLLs[id] = setInterval(poller, pollingInterval);
+    poller();
+  },
+  stopResourceTablePolling: (id) => {
+    const poller = POLLs[id];
+    clearInterval(poller);
+    delete POLLs[id];
+    return {type: types.unsetResourceTable, id};
+  },
   getResources: () => dispatch => {
     dispatch({type: types.getResourcesInFlight});
     getResources_()
@@ -74,11 +98,9 @@ const actions = {
       // eslint-disable-next-line no-console
       .catch(err => console.error(err));
   },
-
   filterList: (id, name, value) => {
     return {id, name, value, type: types.filterList};
   },
-
   watchK8sObject: (id, name, namespace, query, k8sType) => (dispatch, getState) => {
     if (id in REF_COUNTS) {
       REF_COUNTS[id] += 1;
@@ -99,7 +121,7 @@ const actions = {
           e => dispatch(actions.errored(id, e))
         );
     };
-    POLLs[id] = setInterval(poller, 30 * 1000);
+    POLLs[id] = setInterval(poller, pollingInterval);
     poller();
 
     const {subprotocols} = getState().UI.get('impersonate', {});

@@ -51,6 +51,9 @@ const updateList = (list: ImmutableMap<string, any>, nextJS: K8sResourceKind) =>
 const loadList = (oldList, resources) => {
   const existingKeys = new Set(oldList.keys());
   return oldList.withMutations(list => {
+    
+    resources = _.isArray(resources) ? resources : [resources];
+    console.log(resources);
     (resources || []).forEach(r => {
       const qualifiedName = getQN(r);
       existingKeys.delete(qualifiedName);
@@ -70,6 +73,42 @@ const loadList = (oldList, resources) => {
       list.delete(k);
     });
   });
+};
+
+const normalizeTable = ({table, isNamespaced}) => {
+  const { columnDefinitions, rows } = table;
+  let normalizedTable = {
+    header: columnDefinitions,
+    data: {},
+  };
+  const containsNamespace = _.some(columnDefinitions, {name: 'Namespace'})
+
+  if (isNamespaced && !containsNamespace) {
+    normalizedTable.header.splice(1, 0, {
+      name: 'Namespace',
+      type: 'string',
+      format: 'namespace'
+    });
+  } 
+  _.each(rows, (row) => {
+    const name = row.cells[0];
+    const ns = _.get(row, 'object.metadata.namespace');
+    const objName = ns ? `(${ns})-${name}` : name;
+    if (isNamespaced && !containsNamespace) {
+      row.cells.splice(1, 0, ns);
+    }
+    let obj = {metadata: {
+      uid: row.object.metadata.uid,
+      resourceVersion: row.object.metadata.resourceVersion,
+    }};
+    _.each(normalizedTable.header, (column, index) => {
+      obj.metadata[_.lowerFirst(column.name)] = row.cells[index];
+    });
+
+    normalizedTable.data[objName] = obj;
+  });
+  normalizedTable.data = fromJS(normalizedTable.data);
+  return normalizedTable;
 };
 
 export default (state: ImmutableMap<string, any>, action) => {
@@ -113,6 +152,25 @@ export default (state: ImmutableMap<string, any>, action) => {
 
     case types.filterList:
       return state.setIn([id, 'filters', action.name], action.value);
+
+    case types.setResourceTable:
+      const norm  = normalizeTable(_.pick(action, ['table', 'isNamespaced']));
+      // return state.set('resourceTable', norm);
+
+      return state.mergeDeep({[id]: {
+        loadError: '',
+        loaded: true,
+        data: ImmutableMap(norm.data),
+        filters: ImmutableMap(),
+        selected: null,
+      }},{
+        tableHeader: norm.header
+      });
+
+      // return state.set('resourceTable', _.pick(action, ['table', 'isNamespaced']));
+
+    case types.unsetResourceTable:
+      return state.delete(id).delete('tableHeader');
 
     case types.watchK8sObject:
       return state.set(id, ImmutableMap({

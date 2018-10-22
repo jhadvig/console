@@ -6,6 +6,8 @@ import { Map as ImmutableMap } from 'immutable';
 
 import { inject } from './index';
 import actions from '../../module/k8s/k8s-actions';
+import { referenceForModel } from '../../module/k8s/k8s';
+import { resourceListPages } from '../resource-pages';
 
 export const makeReduxID = (k8sKind = {}, query) => {
   let qs = '';
@@ -127,11 +129,18 @@ const stateToProps = ({k8s}, {resources}) => {
   };
 };
 
+const isDefaultResource = (k8sKind) => {
+  const isDefaultResource = !resourceListPages.get(referenceForModel(k8sKind));
+  return isDefaultResource;
+}
+
 export const Firehose = connect(
   stateToProps, {
     stopK8sWatch: actions.stopK8sWatch,
     watchK8sObject: actions.watchK8sObject,
     watchK8sList: actions.watchK8sList,
+    pollResourceTable: actions.pollResourceTable,
+    stopResourceTablePolling: actions.stopResourceTablePolling,
   })(
   /** @augments {React.Component<{k8sModels?: Map<string, K8sKind>, forceUpdate?: boolean}>} */
   class Firehose extends React.Component {
@@ -164,7 +173,7 @@ export const Firehose = connect(
     }
 
     start() {
-      const { watchK8sList, watchK8sObject, resources, k8sModels, inFlight } = this.props;
+      const { watchK8sList, watchK8sObject, pollResourceTable, resources, k8sModels, inFlight } = this.props;
 
       if (inFlight) {
         this.firehoses = [];
@@ -183,14 +192,19 @@ export const Firehose = connect(
         });
       }
 
-      this.firehoses.forEach(({ id, query, k8sKind, isList, name, namespace }) => isList
-        ? watchK8sList(id, query, k8sKind)
-        : watchK8sObject(id, name, namespace, query, k8sKind)
-      );
+      
+
+      this.firehoses.forEach(({ id, query, k8sKind, isList, name, namespace }) => {
+        if (isList) {
+          isDefaultResource(k8sKind) ? pollResourceTable(id, k8sKind) : watchK8sList(id, query, k8sKind);
+        } else {
+          watchK8sObject(id, name, namespace, query, k8sKind);
+        }
+      });
     }
 
     clear() {
-      this.firehoses.forEach(({id}) => this.props.stopK8sWatch(id));
+      this.firehoses.forEach(({id}) => isDefaultResource ? this.props.stopResourceTablePolling(id) : this.props.stopK8sWatch(id));
       this.firehoses = [];
     }
 
