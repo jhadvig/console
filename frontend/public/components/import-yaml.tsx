@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { AsyncComponent } from './utils';
+// import { AsyncComponent } from './utils';
+import { DroppableEditYAML } from './edit-yaml';
 
 export const ImportYamlPage = () => {
 
@@ -8,7 +9,9 @@ export const ImportYamlPage = () => {
       <div>Import YAML</div>
       <div className="yaml-editor__subheader">Create resources from their YAML or JSON definitions.</div>
     </div>
-    <AsyncComponent loader={() => import('./edit-yaml').then(c => c.EditYAML)} create={true} showHeader={false} download={false} />
+    <DroppableEditYAML create={true} showHeader={false} download={false} />
   </React.Fragment>;
 
 };
+
+// <AsyncComponent loader={() => import('./edit-yaml').then(c => c.EditYAML)} create={true} showHeader={false} download={false} />
