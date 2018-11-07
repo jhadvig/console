@@ -114,6 +114,11 @@ export default (state: ImmutableMap<string, any>, action) => {
     case types.filterList:
       return state.setIn([id, 'filters', action.name], action.value);
 
+    case types.setAdditionalPrinterColumns:
+      return state.mergeDeep({additionalPrinterColumns: action.additionalPrinterColumns});
+    case types.clearAdditionalPrinterColumns:
+      return state.delete('additionalPrinterColumns');
+
     case types.watchK8sObject:
       return state.set(id, ImmutableMap({
         loadError: '',

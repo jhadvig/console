@@ -1,6 +1,8 @@
 import * as _ from 'lodash-es';
 import * as React from 'react';
+import { connect } from 'react-redux';
 
+import store from '../redux';
 import { ColHead, DetailsPage, List, ListHeader, ListPage } from './factory';
 import { fromNow } from './utils/datetime';
 import { referenceFor, kindForReference } from '../module/k8s';
@@ -17,27 +19,62 @@ import {
 const { common } = Cog.factory;
 const menuActions = [...common];
 
-const Header = props => <ListHeader>
-  <ColHead {...props} className="col-xs-6 col-sm-4" sortField="metadata.name">Name</ColHead>
-  <ColHead {...props} className="col-xs-6 col-sm-4" sortField="metadata.namespace">Namespace</ColHead>
-  <ColHead {...props} className="col-sm-4 hidden-xs" sortField="metadata.creationTimestamp">Created</ColHead>
-</ListHeader>;
+const computeColumnSizes = (columns) => {
+  const columnsNumber = _.size(columns);
+  const columnsSize = Math.floor(12 / columnsNumber);
+  const fistColumnSize = 12 - (columnsSize * (columnsNumber-1));
+  return {
+    fistColumnSize,
+    columnsSize
+  };
+};
+
+const Header_ = props => {
+  if (!_.get(props, 'additionalPrinterColumns')) {
+    return null;
+  }
+  const additionalPrinterColumns = props.additionalPrinterColumns.toJSON();
+  const { fistColumnSize, columnsSize } = computeColumnSizes(additionalPrinterColumns);
+  const columnHeaders = _.map(additionalPrinterColumns, (column, index) => {
+    return <ColHead {...props} key={index} className={index === 0 ? `col-xs-${fistColumnSize}` : `col-xs-${columnsSize}`} sortField={_.trimStart(column.JSONPath, '.')}>{column.name}</ColHead>;
+  });
+  return <ListHeader>
+    {columnHeaders}
+  </ListHeader>;
+};
+
+const stateToProps = ({k8s}) => {
+  const additionalPrinterColumns = k8s.get('additionalPrinterColumns');
+  return {additionalPrinterColumns};
+};
+
+const Header = connect(stateToProps)(Header_);
 
 const RowForKind = kind => function RowForKind_ ({obj}) {
+  let printerColumns = store.getState().k8s.get('additionalPrinterColumns');
+  if (!printerColumns) {
+    return null;
+  }
+  printerColumns = printerColumns.toJSON();
+  const { fistColumnSize, columnsSize } = computeColumnSizes(printerColumns);
+  const row = _.map(printerColumns, (column, index) => {
+    if (index === 0 && column.name === 'Name') {
+      return <div className={`col-xs-${fistColumnSize} co-resource-link-wrapper`} key={index}>
+        <ResourceCog actions={menuActions} kind={referenceFor(obj) || kind} resource={obj} />
+        <ResourceLink kind={kind} name={obj.metadata.name} namespace={obj.metadata.namespace} title={obj.metadata.name} />
+      </div>;
+    } else if (column.name === 'Namespace' && column.JSONPath === '.metadata.namespace') {
+      return <div className={`col-xs-${columnsSize} co-break-word`} key={index}>
+        <ResourceLink kind="Namespace" name={obj.metadata.namespace} title={obj.metadata.namespace} />
+      </div>;
+    }
+    const data = _.get(obj, _.trimStart(column.JSONPath, '.'));
+    return <div className={`col-xs-${columnsSize} co-break-word`} key={index}>
+      { column.type === 'date' ? fromNow(data) : data }
+    </div>;
+  });
   return <div className="row co-resource-list__item">
-    <div className="col-xs-6 col-sm-4 co-resource-link-wrapper">
-      <ResourceCog actions={menuActions} kind={referenceFor(obj) || kind} resource={obj} />
-      <ResourceLink kind={kind} name={obj.metadata.name} namespace={obj.metadata.namespace} title={obj.metadata.name} />
-    </div>
-    <div className="col-xs-6 col-sm-4 co-break-word">
-      { obj.metadata.namespace
-        ? <ResourceLink kind="Namespace" name={obj.metadata.namespace} title={obj.metadata.namespace} />
-        : 'None'
-      }
-    </div>
-    <div className="col-xs-6 col-sm-4 hidden-xs">
-      { fromNow(obj.metadata.creationTimestamp) }
-    </div>
+    {row}
   </div>;
 };
 

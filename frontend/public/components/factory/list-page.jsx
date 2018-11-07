@@ -5,9 +5,11 @@ import * as React from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
 
+import store from '../../redux';
 import k8sActions from '../../module/k8s/k8s-actions';
 import { CheckBoxes, storagePrefix } from '../row-filter';
 import { ErrorPage404 } from '../error';
+import { resourceListPages } from '../resource-pages';
 import { makeReduxID, makeQuery } from '../utils/k8s-watcher';
 import { referenceForModel } from '../../module/k8s';
 import {
@@ -57,6 +59,18 @@ TextFilter.displayName = 'TextFilter';
 // TODO (jon) make this into "withListPageFilters" HOC
 /** @augments {React.PureComponent<{ListComponent: React.ComponentType<any>, kinds: string[], flatten?: function, data?: any[], rowFilters?: any[]}>} */
 export class ListPageWrapper_ extends React.PureComponent {
+  componentDidMount() {
+    // ToDO: Deal with loading of multiple tables
+    const model = kindObj(this.props.kinds[0]);
+    const ref = referenceForModel(model);
+    if (!resourceListPages.get(ref)) {
+      const name = `${model.plural}.${model.apiGroup}`;
+      store.dispatch(k8sActions.setAdditionalPrinterColumns(name));
+    }
+  }
+  componentWillUnmount() {
+    store.dispatch(k8sActions.clearAdditionalPrinterColumns());
+  }
   render () {
     const {
       flatten,

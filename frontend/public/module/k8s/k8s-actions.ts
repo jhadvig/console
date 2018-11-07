@@ -1,9 +1,11 @@
 /* eslint-disable no-unused-vars, no-undef */
 
+import * as _ from 'lodash-es';
+
 import { cacheResources, getResources as getResources_ } from './get-resources';
 import { k8sList, k8sWatch, k8sGet } from './resource';
 import { makeReduxID } from '../../components/utils/k8s-watcher';
-import { APIServiceModel } from '../../models';
+import { APIServiceModel, CustomResourceDefinitionModel } from '../../models';
 import { coFetchJSON } from '../../co-fetch';
 
 const types = {
@@ -22,6 +24,9 @@ const types = {
   bulkAddToList: 'bulkAddToList',
   filterList: 'filterList',
   updateListFromWS: 'updateListFromWS',
+
+  setAdditionalPrinterColumns: 'setAdditionalPrinterColumns',
+  clearAdditionalPrinterColumns: 'clearAdditionalPrinterColumns',
 };
 
 type Action = (type: string) => (id: string, k8sObjects: any) => {type: string, id: string, k8sObjects: any};
@@ -65,6 +70,31 @@ const actions = {
         POLLs[apiGroups] = setInterval(poller, 30 * 1000);
         poller();
       });
+  },
+
+  setAdditionalPrinterColumns: (crdName) => dispatch => {
+    k8sGet(CustomResourceDefinitionModel, crdName).then(crd => {
+      const additionalPrinterColumns = crd.spec.additionalPrinterColumns;
+      if (_.get(crd, 'spec.scope') === 'Namespaced' && !_.some(additionalPrinterColumns, {name: 'Namespace'})) {
+        additionalPrinterColumns.unshift({
+          name: 'Namespace',
+          type: 'string',
+          JSONPath: '.metadata.namespace',
+        });
+      }
+      if (!_.some(additionalPrinterColumns, {name: 'Name', JSONPath: '.metadata.name'})) {
+        additionalPrinterColumns.unshift({
+          name: 'Name',
+          type: 'string',
+          JSONPath: '.metadata.name',
+        });
+      }
+      dispatch({type: types.setAdditionalPrinterColumns, additionalPrinterColumns});
+    });
+  },
+
+  clearAdditionalPrinterColumns: () => dispatch =>{
+    dispatch({type: types.clearAdditionalPrinterColumns});
   },
 
   getResources: () => dispatch => {
