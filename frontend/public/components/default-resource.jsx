@@ -22,8 +22,8 @@ const menuActions = [...common];
 const computeClasses = (index, columnsNumber) => {
   const columnSize = Math.floor(12 / columnsNumber);
   const fistColumnSize = 12 - (columnSize * (columnsNumber-1));
-  return index <= 1 ? `col-md-${index === 0 ? fistColumnSize : columnSize} col-sm-6 col-xs-6` : `col-md-${columnSize} hidden-sm hidden-xs`
-}
+  return index <= 1 ? `col-md-${index === 0 ? fistColumnSize : columnSize} col-sm-6 col-xs-6` : `col-md-${columnSize} hidden-sm hidden-xs`;
+};
 
 const Header_ = props => {
   if (!_.get(props, 'additionalPrinterColumns')) {
@@ -46,17 +46,18 @@ const stateToProps = ({k8s}) => {
 
 const Header = connect(stateToProps)(Header_);
 
-const RowForKind = kind => function RowForKind_ ({obj}) {
-  let printerColumns = store.getState().k8s.get('additionalPrinterColumns');
-  if (!printerColumns) {
+const Row_ = props => {
+  if (!_.get(props, 'additionalPrinterColumns')) {
     return null;
   }
-  printerColumns = printerColumns.toJSON();
+  const printerColumns = props.additionalPrinterColumns.toJSON();
+  const { obj } = props;
+  const kind = referenceFor(obj);
   const columnsNumber = _.size(printerColumns);
   const row = _.map(printerColumns, (column, index) => {
     if (column.name === 'Name' && column.JSONPath === '.metadata.name') {
       return <div className={`${computeClasses(index, columnsNumber)} co-resource-link-wrapper`} key={index}>
-        <ResourceCog actions={menuActions} kind={referenceFor(obj) || kind} resource={obj} />
+        <ResourceCog actions={menuActions} kind={kind} resource={obj} />
         <ResourceLink kind={kind} name={obj.metadata.name} namespace={obj.metadata.namespace} title={obj.metadata.name} />
       </div>;
     } else if (column.name === 'Namespace' && column.JSONPath === '.metadata.namespace') {
@@ -74,6 +75,8 @@ const RowForKind = kind => function RowForKind_ ({obj}) {
   </div>;
 };
 
+const Row = connect(stateToProps)(Row_);
+
 const DetailsForKind = kind => function DetailsForKind_ ({obj}) {
   return <React.Fragment>
     <div className="co-m-pane__body">
@@ -85,8 +88,8 @@ const DetailsForKind = kind => function DetailsForKind_ ({obj}) {
 
 export const DefaultList = props => {
   const { kinds } = props;
-  const Row = RowForKind(kinds[0]);
-  Row.displayName = 'RowForKind';
+  // const Row = RowForKind(kinds[0]);
+  Row.displayName = 'Row';
   return <List {...props} Header={Header} Row={Row} />;
 };
 DefaultList.displayName = DefaultList;
