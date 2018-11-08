@@ -28,7 +28,9 @@ const computeClasses = (index, columnsNumber) => {
 };
 
 const sortAndTrim = (allColumns) => {
-  const columnsSortByPriority = _.sortBy(allColumns, [function(col) {return col.priority ? col.priority : 0}]);
+  const columnsSortByPriority = _.sortBy(allColumns, [function(col) {
+    return col.priority ? col.priority : 0;
+  }]);
   if (_.size(columnsSortByPriority) > maxNumberOfColumns) {
     return _.dropRight(columnsSortByPriority, columnsSortByPriority - maxNumberOfColumns);
   }

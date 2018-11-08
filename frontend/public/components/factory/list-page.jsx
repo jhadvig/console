@@ -65,11 +65,11 @@ export class ListPageWrapper_ extends React.PureComponent {
     const ref = referenceForModel(model);
     if (!resourceListPages.get(ref)) {
       const name = `${model.plural}.${model.apiGroup}`;
-      store.dispatch(k8sActions.setAdditionalPrinterColumns(name));
+      store.dispatch(k8sActions.setPrinterColumns(name));
     }
   }
   componentWillUnmount() {
-    store.dispatch(k8sActions.clearAdditionalPrinterColumns());
+    store.dispatch(k8sActions.clearPrinterColumns());
   }
   render () {
     const {

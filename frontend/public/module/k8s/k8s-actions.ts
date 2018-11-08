@@ -25,8 +25,8 @@ const types = {
   filterList: 'filterList',
   updateListFromWS: 'updateListFromWS',
 
-  setAdditionalPrinterColumns: 'setAdditionalPrinterColumns',
-  clearAdditionalPrinterColumns: 'clearAdditionalPrinterColumns',
+  setPrinterColumns: 'setPrinterColumns',
+  clearPrinterColumns: 'clearPrinterColumns',
 };
 
 type Action = (type: string) => (id: string, k8sObjects: any) => {type: string, id: string, k8sObjects: any};
@@ -72,29 +72,29 @@ const actions = {
       });
   },
 
-  setAdditionalPrinterColumns: (crdName) => dispatch => {
+  setPrinterColumns: (crdName) => dispatch => {
     k8sGet(CustomResourceDefinitionModel, crdName).then(crd => {
-      const additionalPrinterColumns = crd.spec.additionalPrinterColumns;
-      if (_.get(crd, 'spec.scope') === 'Namespaced' && !_.some(additionalPrinterColumns, {name: 'Namespace'})) {
-        additionalPrinterColumns.unshift({
+      const printerColumns = crd.spec.additionalPrinterColumns;
+      if (_.get(crd, 'spec.scope') === 'Namespaced' && !_.some(printerColumns, {name: 'Namespace'})) {
+        printerColumns.unshift({
           name: 'Namespace',
           type: 'string',
           JSONPath: '.metadata.namespace',
         });
       }
-      if (!_.some(additionalPrinterColumns, {name: 'Name', JSONPath: '.metadata.name'})) {
-        additionalPrinterColumns.unshift({
+      if (!_.some(printerColumns, {name: 'Name', JSONPath: '.metadata.name'})) {
+        printerColumns.unshift({
           name: 'Name',
           type: 'string',
           JSONPath: '.metadata.name',
         });
       }
-      dispatch({type: types.setAdditionalPrinterColumns, additionalPrinterColumns});
+      dispatch({type: types.setPrinterColumns, printerColumns});
     });
   },
 
-  clearAdditionalPrinterColumns: () => dispatch =>{
-    dispatch({type: types.clearAdditionalPrinterColumns});
+  clearPrinterColumns: () => dispatch =>{
+    dispatch({type: types.clearPrinterColumns});
   },
 
   getResources: () => dispatch => {
