@@ -74,7 +74,7 @@ const actions = {
 
   setPrinterColumns: (crdName) => dispatch => {
     k8sGet(CustomResourceDefinitionModel, crdName).then(crd => {
-      const printerColumns = crd.spec.additionalPrinterColumns;
+      const printerColumns = _.get(crd, 'spec.additionalPrinterColumns', []);
       if (_.get(crd, 'spec.scope') === 'Namespaced' && !_.some(printerColumns, {name: 'Namespace'})) {
         printerColumns.unshift({
           name: 'Namespace',
