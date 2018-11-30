@@ -274,6 +274,11 @@ export const WorkloadListHeader = props => <ListHeader>
   <ColHead {...props} className="col-lg-3 hidden-md hidden-sm hidden-xs" sortField="spec.selector">Pod Selector</ColHead>
 </ListHeader>;
 
+const getRowKey = (obj, index) => {
+  return _.get(obj, 'rowKey') || _.get(obj, 'metadata.uid', index);
+}
+
+
 const VirtualRows: React.SFC<RowsProps> = (props) => {
   const { mock, label } = props;
 
@@ -294,7 +299,7 @@ const VirtualRows: React.SFC<RowsProps> = (props) => {
       parent={parent}
       rowIndex={index}>
       <div style={style} className="co-m-row">
-        <Row key={_.get(obj, 'metadata.uid', index)} obj={obj} expand={expand} kindObj={kindObj} index={index} />
+        <Row key={getRowKey(obj, index)} obj={obj} expand={expand} kindObj={kindObj} index={index} />
       </div>
     </CellMeasurer>;
   };
@@ -342,9 +347,12 @@ const Rows: React.SFC<RowsProps> = (props) => {
   const {Row, expand, kindObj} = props;
 
   return <div className="co-m-table-grid__body">
-    { props.data.map((obj, i) => <div key={_.get(obj, 'metadata.uid', i)} className="co-m-row">
-      <Row obj={obj} expand={expand} kindObj={kindObj} />
-    </div>) }
+    { props.data.map((obj, i) => {
+      return (<div key={getRowKey(obj, i)} className="co-m-row">
+        <Row obj={obj} expand={expand} kindObj={kindObj} />
+      </div>);
+    })
+    };
   </div>;
 };
 
