@@ -8,7 +8,13 @@ import { receivedResources } from './k8s';
 import { coFetchJSON } from '../co-fetch';
 import { MonitoringRoutes } from '../reducers/monitoring';
 import { setMonitoringURL } from './monitoring';
-import { setClusterID, setConsoleLinks, setCreateProjectMessage, setUser } from './ui';
+import {
+  setClusterID,
+  setConsoleLinks,
+  setConsoleCLIDownloads,
+  setCreateProjectMessage,
+  setUser,
+} from './ui';
 import { FLAGS } from '../const';
 
 export enum ActionType {
@@ -154,6 +160,18 @@ const detectConsoleLinks = (dispatch) =>
     },
   );
 
+const detectConsoleCLIDownloads = (dispatch) =>
+  coFetchJSON('api/kubernetes/apis/console.openshift.io/v1/consoleclidownloads').then(
+    (consoleCLIDownloads) => {
+      dispatch(setConsoleCLIDownloads(_.get(consoleCLIDownloads, 'items')));
+    },
+    (err) => {
+      if (!_.includes([401, 403, 404, 500], _.get(err, 'response.status'))) {
+        setTimeout(() => detectConsoleCLIDownloads(dispatch), 15000);
+      }
+    },
+  );
+
 const projectListPath = `${k8sBasePath}/apis/project.openshift.io/v1/projects?limit=1`;
 const detectShowOpenShiftStartGuide = (dispatch, canListNS: boolean = false) => {
   // Skip the project check if we know the user can list all namespaces. This
@@ -260,5 +278,6 @@ export const detectFeatures = () => (dispatch: Dispatch) =>
     detectUser,
     detectLoggingURL,
     detectConsoleLinks,
+    detectConsoleCLIDownloads,
     ...ssarCheckActions,
   ].forEach((detect) => detect(dispatch));
