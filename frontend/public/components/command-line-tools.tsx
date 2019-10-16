@@ -60,9 +60,9 @@ const CommandLineTools: React.FC<CommandLineToolsProps> = ({ obj }) => {
   );
 };
 
-export const CommandLineToolsPage = connectToFlags(FLAGS.CONSOLE_CLI_DOWNLOAD)(
+export const CommandLineToolsPage = connectToFlags(FLAGS.CONSOLE_CLI_DOWNLOADS)(
   ({ flags, ...props }) => {
-    const resources = flags[FLAGS.CONSOLE_CLI_DOWNLOAD]
+    const resources = flags[FLAGS.CONSOLE_CLI_DOWNLOADS]
       ? [
           {
             kind: referenceForModel(ConsoleCLIDownloadModel),

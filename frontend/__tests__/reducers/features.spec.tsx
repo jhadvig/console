@@ -50,7 +50,7 @@ describe('featureReducer', () => {
         [FLAGS.CLUSTER_API]: false,
         [FLAGS.MACHINE_CONFIG]: false,
         [FLAGS.MACHINE_AUTOSCALER]: false,
-        [FLAGS.CONSOLE_CLI_DOWNLOAD]: false,
+        [FLAGS.CONSOLE_CLI_DOWNLOADS]: false,
         [FLAGS.CONSOLE_NOTIFICATION]: false,
         [FLAGS.CONSOLE_EXTERNAL_LOG_LINK]: false,
       }),

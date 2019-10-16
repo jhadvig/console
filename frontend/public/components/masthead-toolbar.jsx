@@ -284,25 +284,33 @@ class MastheadToolbar_ extends React.Component {
   };
 
   _helpActions(additionalHelpActions) {
+    const { consoleCLIDownloads } = this.props
     const helpActions = [];
+
+    const actions = [{
+        label: 'Documentation',
+        externalLink: true,
+        href: openshiftHelpBase,
+      },
+      {
+        label: 'Command Line Tools',
+        callback: this._onCommandLineTools,
+      },
+      {
+        label: 'About',
+        callback: this._onAboutModal,
+      },
+    ];
+
+    // If there are no ConsoleCLIDownloads CRs don't show the 'Command Line Tools' help action.
+    if (_.isEmpty(consoleCLIDownloads)) {
+      _.remove(actions, (a) => a.label === 'Command Line Tools')
+    }
+
     helpActions.push({
       name: '',
       isSection: true,
-      actions: [
-        {
-          label: 'Documentation',
-          externalLink: true,
-          href: openshiftHelpBase,
-        },
-        {
-          label: 'Command Line Tools',
-          callback: this._onCommandLineTools,
-        },
-        {
-          label: 'About',
-          callback: this._onAboutModal,
-        },
-      ],
+      actions: actions,
     });
 
     if (!_.isEmpty(additionalHelpActions.actions)) {
@@ -589,8 +597,9 @@ const mastheadToolbarStateToProps = ({ UI }) => ({
   clusterID: UI.get('clusterID'),
   user: UI.get('user'),
   consoleLinks: UI.get('consoleLinks'),
+  consoleCLIDownloads: UI.get('consoleCLIDownloads'),
 });
 
 export const MastheadToolbar = connect(mastheadToolbarStateToProps)(
-  connectToFlags(FLAGS.AUTH_ENABLED, FLAGS.OPENSHIFT, FLAGS.CLUSTER_VERSION)(MastheadToolbar_),
+  connectToFlags(FLAGS.AUTH_ENABLED, FLAGS.OPENSHIFT, FLAGS.CLUSTER_VERSION, FLAGS.CONSOLE_CLI_DOWNLOADS)(MastheadToolbar_),
 );

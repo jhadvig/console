@@ -31,7 +31,7 @@ export const baseCRDs = {
   [referenceForModel(MachineModel)]: FLAGS.CLUSTER_API,
   [referenceForModel(MachineConfigModel)]: FLAGS.MACHINE_CONFIG,
   [referenceForModel(MachineAutoscalerModel)]: FLAGS.MACHINE_AUTOSCALER,
-  [referenceForModel(ConsoleCLIDownloadModel)]: FLAGS.CONSOLE_CLI_DOWNLOAD,
+  [referenceForModel(ConsoleCLIDownloadModel)]: FLAGS.CONSOLE_CLI_DOWNLOADS,
   [referenceForModel(ConsoleNotificationModel)]: FLAGS.CONSOLE_NOTIFICATION,
   [referenceForModel(ConsoleExternalLogLinkModel)]: FLAGS.CONSOLE_EXTERNAL_LOG_LINK,
 };
