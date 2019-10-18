@@ -46,7 +46,6 @@ export enum ActionType {
   UpdateOverviewFilterValue = 'updateOverviewFilterValue',
   UpdateTimestamps = 'updateTimestamps',
   SetConsoleLinks = 'setConsoleLinks',
-  SetConsoleCLIDownloads = 'setConsoleCLIDownloads',
 }
 
 // URL routes that can be namespaced
@@ -273,8 +272,6 @@ export const queryBrowserToggleSeries = (index: number, labels: { [key: string]:
 };
 export const setConsoleLinks = (consoleLinks: string[]) =>
   action(ActionType.SetConsoleLinks, { consoleLinks });
-export const setConsoleCLIDownloads = (consoleCLIDownloads: string[]) =>
-  action(ActionType.SetConsoleCLIDownloads, { consoleCLIDownloads });
 
 // TODO(alecmerdler): Implement all actions using `typesafe-actions` and add them to this export
 const uiActions = {
@@ -312,7 +309,6 @@ const uiActions = {
   queryBrowserToggleIsEnabled,
   queryBrowserToggleSeries,
   setConsoleLinks,
-  setConsoleCLIDownloads,
 };
 
 export type UIAction = Action<typeof uiActions>;

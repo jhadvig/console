@@ -273,9 +273,6 @@ export default (state: UIState, action: UIAction): UIState => {
     case ActionType.SetConsoleLinks:
       return state.set('consoleLinks', action.payload.consoleLinks);
 
-    case ActionType.SetConsoleCLIDownloads:
-      return state.set('consoleCLIDownloads', action.payload.consoleCLIDownloads);
-
     default:
       break;
   }

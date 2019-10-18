@@ -284,7 +284,8 @@ class MastheadToolbar_ extends React.Component {
   };
 
   _helpActions(additionalHelpActions) {
-    const { consoleCLIDownloads } = this.props;
+
+    const { flags } = this.props;
     const helpActions = [];
 
     const actions = [
@@ -303,10 +304,7 @@ class MastheadToolbar_ extends React.Component {
       },
     ];
 
-    // If there are no ConsoleCLIDownloads CRs don't show the 'Command Line Tools' item in Help menu.
-    if (_.isEmpty(consoleCLIDownloads)) {
-      _.remove(actions, (a) => a.label === 'Command Line Tools');
-    }
+    !flags[FLAGS.CONSOLE_CLI_DOWNLOAD] && _.remove(actions, (a) => a.label === 'Command Line Tools');
 
     helpActions.push({
       name: '',
@@ -598,9 +596,8 @@ const mastheadToolbarStateToProps = ({ UI }) => ({
   clusterID: UI.get('clusterID'),
   user: UI.get('user'),
   consoleLinks: UI.get('consoleLinks'),
-  consoleCLIDownloads: UI.get('consoleCLIDownloads'),
 });
 
 export const MastheadToolbar = connect(mastheadToolbarStateToProps)(
-  connectToFlags(FLAGS.AUTH_ENABLED, FLAGS.OPENSHIFT, FLAGS.CLUSTER_VERSION)(MastheadToolbar_),
+  connectToFlags(FLAGS.AUTH_ENABLED, FLAGS.OPENSHIFT, FLAGS.CLUSTER_VERSION, FLAGS.CONSOLE_CLI_DOWNLOAD)(MastheadToolbar_),
 );
