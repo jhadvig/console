@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet';
 import { match } from 'react-router';
 import { ActionGroup, Alert, Button, Checkbox, Tooltip } from '@patternfly/react-core';
 import {
-  Dropdown,
+  // Dropdown,
   Firehose,
   history,
   NsDropdown,
@@ -12,7 +12,6 @@ import {
   MsgBox,
   StatusBox,
   ResourceIcon,
-  ResourceName,
   resourceListPathFromModel,
 } from '@console/internal/components/utils';
 import {
@@ -33,6 +32,7 @@ import {
   ClusterServiceVersionModel,
 } from '../../models';
 import { NamespaceModel } from '@console/internal/models';
+import { K8sResourceCommon } from '@console/internal/module/k8s';
 import {
   OperatorGroupKind,
   PackageManifestKind,
@@ -82,36 +82,32 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
       InstallModeType.InstallModeTypeOwnNamespace,
     );
 
-  const forcedTargetNamespace = _.get(props, ['packageManifest', 'data', '0', 'metadata', 'annotations', 'operators.operatorframework.io.targetNamespace']);
-  // const forcedTargetNamespace = "openshift-test"
-
-  let items = {
-    'openshift-operators': <ResourceName kind="Project" name="openshift-operators" />,
-  }
+  // const suggestedTargetNamespace = _.get(props, ['packageManifest', 'data', '0', 'metadata', 'annotations', 'operatorframework.io/suggested-namespace']);
+  const suggestedTargetNamespace = "openshift-test"
 
   let selectedTargetNamespace = targetNamespace || props.targetNamespace;
   if (selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces) {
-    if (forcedTargetNamespace) {
-      items[forcedTargetNamespace] = <ResourceName kind="Project" name={`${forcedTargetNamespace} (Operator recommended)`} />;
-      selectedTargetNamespace = targetNamespace || forcedTargetNamespace;
+    if (suggestedTargetNamespace && useRecommendedNamespace) {
+      selectedTargetNamespace = suggestedTargetNamespace;
     } else {
       selectedTargetNamespace = _.get(props.operatorGroup, 'data', [] as OperatorGroupKind[]).find(
         (og) => og.metadata.name === 'global-operators',
       ).metadata.namespace;
     }
   }
+
+
   const selectedApproval = approval || InstallPlanApproval.Automatic;
 
   React.useEffect(() => {
-    if (forcedTargetNamespace) {
-      setTargetNamespace(forcedTargetNamespace);
+    if (suggestedTargetNamespace) {
+      setTargetNamespace(suggestedTargetNamespace);
       setUseRecommendedNamespace(true);
     }
   }, [installMode])
 
   React.useEffect(() => {
-    if (forcedTargetNamespace) {
-      // setUseRecommendedNamespace(true)
+    if (suggestedTargetNamespace) {
       k8sGet(NamespaceModel, selectedTargetNamespace).then(
         () => {
           setTargetNamespaceExists(true);
@@ -121,7 +117,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
             setTargetNamespaceExists(false);
           }
         }
-      )
+      ).catch(err => setError(err.message));
     };  
 
     k8sListPartialMetadata(PackageManifestModel, {
@@ -199,7 +195,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   };
 
   const createNamespaceIfNecessary = () => {
-    const newNamespace = {
+    const newNamespace: K8sResourceCommon = {
       metadata: {
         name: selectedTargetNamespace,
         labels: {
@@ -264,9 +260,8 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
           )
           .catch(({ message = 'Could not create operator subscription.' }) => setError(message));
 
-      },
-      (err) => setError(err.message),
-    );
+      }
+    ).catch(({ message = 'Could not create namespace.' }) => setError(message));
   };
 
   const formValid = () =>
@@ -330,105 +325,6 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     );
   };
 
-  const isOpenshiftNamespace = (ns: string): boolean => {
-    return _.startsWith(ns, 'openshift-')
-  };
-
-  const createNamespaceAlert = () => {
-    const monitoring = <div style={{ marginLeft: '20px' }}>
-      <Checkbox
-        id={selectedTargetNamespace}
-        label="Enable operator recommended cluster monitoring on this namespace"
-        onChange={(val) => {
-          setEnableMonitoring(val)
-        }}
-        isChecked={enableMonitoring}
-        name="enableNamespaceMonitoring"
-      />
-      <small>Note: Enabling monitoring will allow any operator or workload running on this namespace to contribute metrics to the cluster metric set.</small>
-    </div>
-
-    if (!targetNamespaceExists) {
-      return <>
-        <div style={{ marginTop: '20px' }}>
-          <Alert
-            isInline
-            className="co-alert co-alert--scrollable"
-            variant="info"
-            title="Namespace creation"
-          >
-            <div className="co-pre-line">Namespace <b>{forcedTargetNamespace}</b> does not exist and will be created.</div>
-          </Alert>
-        </div>
-        {isOpenshiftNamespace(selectedTargetNamespace) && monitoring}
-      </>
-    }
-  };
-
-  const globalNamespaceInstallMode = () => {
-    return <>
-      <Dropdown
-        id="dropdown-selectbox"
-        dropDownClassName="dropdown--full-width"
-        menuClassName="dropdown-menu--text-wrap"
-        items={items}
-        title={<ResourceName kind="Project" name={selectedTargetNamespace === forcedTargetNamespace ? `${selectedTargetNamespace} (Operator recommended)` : selectedTargetNamespace} />}
-        disabled={Object.keys(items).length === 1 ? true : false}
-        selectedKey={selectedTargetNamespace}
-        onChange={(ns: string) => {
-          setTargetNamespace(ns);
-          setCannotResolve(false);
-        }}
-      />
-      {createNamespaceAlert()}
-    </>
-  };
-
-  const singleNamespaceInstallMode = () => {
-    if (forcedTargetNamespace) {
-      return <div style={{ marginBottom: '20px' }}>
-      <RadioInput
-        onChange={(e) => {
-          setUseRecommendedNamespace(true)
-          setTargetNamespace(forcedTargetNamespace);
-        }}
-        value={forcedTargetNamespace}
-        checked={useRecommendedNamespace}
-        title="Operator recommended namespace:"
-      >
-        &nbsp;&nbsp;
-        <ResourceIcon kind="Project" />
-        <b>{forcedTargetNamespace}</b>
-      </RadioInput>
-      {createNamespaceAlert()}
-      <RadioInput
-        onChange={(e) => {
-          setUseRecommendedNamespace(false)
-          setTargetNamespace(null);
-        }}
-        value={forcedTargetNamespace}
-        checked={!useRecommendedNamespace}
-        title="Pick an existing namespace"
-      ></RadioInput>
-      {!useRecommendedNamespace && <NsDropdown
-        id="dropdown-selectbox"
-        selectedKey={selectedTargetNamespace}
-        onChange={(ns: string) => {
-          setTargetNamespace(ns);
-        }}
-      />}
-    </div>
-    }
-
-    return <NsDropdown
-      id="dropdown-selectbox"
-      selectedKey={selectedTargetNamespace}
-      onChange={(ns: string) => {
-        setTargetNamespace(ns);
-      }}
-    />
-  };
-
   return (
     <div className="row">
       <div className="col-xs-6">
@@ -477,9 +373,62 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
           </div>
           <div className="form-group">
             <h5 className="co-required">Installed Namespace</h5>
-            {selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && globalNamespaceInstallMode()}
-            {selectedInstallMode === InstallModeType.InstallModeTypeOwnNamespace && singleNamespaceInstallMode()}
-            {/* selectedTargetNamespace- {selectedTargetNamespace} */}
+            {suggestedTargetNamespace && <div style={{ marginBottom: '20px' }}>
+              <RadioInput
+                onChange={(e) => {
+                  setUseRecommendedNamespace(true)
+                  setTargetNamespace(suggestedTargetNamespace);
+                }}
+                value={suggestedTargetNamespace}
+                checked={useRecommendedNamespace}
+                title="Operator recommended namespace:"
+              >
+                &nbsp;&nbsp;
+                <ResourceIcon kind="Project" />
+                <b>{suggestedTargetNamespace}</b>
+              </RadioInput>
+              {!targetNamespaceExists && <div style={{ marginTop: '20px' }}>
+                <Alert
+                  isInline
+                  className="co-alert co-alert--scrollable"
+                  variant="info"
+                  title="Namespace creation"
+                >
+                  <div className="co-pre-line">Namespace <b>{suggestedTargetNamespace}</b> does not exist and will be created.</div>
+                </Alert>
+                {_.startsWith(selectedTargetNamespace, 'openshift-') && <div>
+                  <Checkbox
+                    id={selectedTargetNamespace}
+                    label="Enable operator recommended cluster monitoring on this namespace"
+                    onChange={setEnableMonitoring}
+                    isChecked={enableMonitoring}
+                    name="enableNamespaceMonitoring"
+                  />
+                  <span className="text-muted">Note: Enabling monitoring will allow any operator or workload running on this namespace to contribute metrics to the cluster metric set.</span>
+                </div>}
+
+              </div>}
+              <RadioInput
+                onChange={(e) => {
+                  setUseRecommendedNamespace(false)
+                  setTargetNamespace(null);
+                }}
+                value={suggestedTargetNamespace}
+                checked={!useRecommendedNamespace}
+                title="Other namespaces"
+              ></RadioInput>
+            </div>}
+
+            {!useRecommendedNamespace && <NsDropdown
+                id="dropdown-selectbox"
+                selectedKey={selectedTargetNamespace}
+                disabled={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
+                onChange={setTargetNamespace}
+              />}
+
+            selectedTargetNamespace- {selectedTargetNamespace}
+            <br ></br>
+            useRecommendedNamespace- {`${useRecommendedNamespace}`}
           </div>
           <div className="form-group">
             <Tooltip content="The channel to track and receive the updates from.">

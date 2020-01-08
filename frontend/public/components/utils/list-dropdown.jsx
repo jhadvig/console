@@ -167,6 +167,7 @@ ListDropdown.propTypes = {
   selectedKey: PropTypes.string,
   selectedKeyKind: PropTypes.string,
   fixed: PropTypes.bool,
+  disabled: PropTypes.bool,
   resources: PropTypes.arrayOf(
     PropTypes.shape({
       kind: PropTypes.string.isRequired,
@@ -195,5 +196,5 @@ const NsDropdown_ = (props) => {
     />
   );
 };
-/** @type {React.FC<{dataFilter?: (ns: any) => boolean, desc?: string, selectedKey?: string, selectedKeyKind?: string, fixed?: boolean, placeholder?: string, onChange?: (selectedKey: string, event: React.Event) => void, id?: string}}>} */
+/** @type {React.FC<{dataFilter?: (ns: any) => boolean, desc?: string, disabled?: boolean, selectedKey?: string, selectedKeyKind?: string, fixed?: boolean, placeholder?: string, onChange?: (selectedKey: string, event: React.Event) => void, id?: string}}>} */
 export const NsDropdown = connectToFlags(FLAGS.OPENSHIFT)(NsDropdown_);
