@@ -58,6 +58,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   const [approval, setApproval] = React.useState(InstallPlanApproval.Automatic);
   const [cannotResolve, setCannotResolve] = React.useState(false);
   const [targetNamespaceExists, setTargetNamespaceExists] = React.useState(false);
+  const [namespaceError, setNamespaceError] = React.useState('');
   const [useRecommendedNamespace, setUseRecommendedNamespace] = React.useState(false)
   const [enableMonitoring, setEnableMonitoring] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -111,13 +112,14 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
       k8sGet(NamespaceModel, selectedTargetNamespace).then(
         () => {
           setTargetNamespaceExists(true);
-        },
-        (error) => {
-          if (_.get(error, 'response.status') === 404) {
-            setTargetNamespaceExists(false);
-          }
+          setNamespaceError('');
         }
-      ).catch(err => setError(err.message));
+      ).catch(err => {
+        if (_.get(error, 'response.status') === 404) {
+          setTargetNamespaceExists(false);
+        }
+        setNamespaceError(err.message);
+      });
     };  
 
     k8sListPartialMetadata(PackageManifestModel, {
