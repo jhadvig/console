@@ -57,6 +57,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   const [updateChannel, setUpdateChannel] = React.useState(null);
   const [approval, setApproval] = React.useState(InstallPlanApproval.Automatic);
   const [cannotResolve, setCannotResolve] = React.useState(false);
+  const [editNamespace, setEditNamespace] = React.useState(false);
   const [targetNamespaceExists, setTargetNamespaceExists] = React.useState(false);
   const [namespaceError, setNamespaceError] = React.useState('');
   const [useRecommendedNamespace, setUseRecommendedNamespace] = React.useState(false)
@@ -97,6 +98,21 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     }
   }
 
+  const operatorGroupsNamespaces: string[] = _.map(props.operatorGroup.data, (og) => og.metadata.name);
+
+  const watchNamespacesOperatorGroupNames: string[] = _.reduce(props.operatorGroup.data, (acc, og: OperatorGroupKind) => {
+    if (og.status.namespaces.length != 1 && og.status.namespaces[0] != '') {
+      acc.push(og.metadata.name);
+    }
+    return acc;
+  }, []); 
+
+  const watchAllNamespacesOperatorGroupNames: string[] = _.reduce(props.operatorGroup.data, (acc, og: OperatorGroupKind) => {
+    if (og.status.namespaces.length == 1 && og.status.namespaces[0] == '') {
+      acc.push(og.metadata.name);
+    }
+    return acc;
+  }, []); 
 
   const selectedApproval = approval || InstallPlanApproval.Automatic;
 
@@ -332,7 +348,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
       <div className="col-xs-6">
         <>
           <div className="form-group co-create-subscription">
-            <h5 className="co-required">Installation Mode</h5>
+            <h5 className="co-required">Operator Namespace Availability</h5>
             <div>
               <RadioInput
                 onChange={(e) => {
@@ -371,11 +387,32 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                   </p>
                 </div>
               </RadioInput>
+
+              {(selectedInstallMode === InstallModeType.InstallModeTypeOwnNamespace) && <NsDropdown
+                id="dropdown-selectbox"
+                selectedKey={selectedTargetNamespace}
+                disabled={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
+                onChange={setTargetNamespace}
+              />}
+
             </div>
           </div>
           <div className="form-group">
             <h5 className="co-required">Installed Namespace</h5>
-            {suggestedTargetNamespace && <div style={{ marginBottom: '20px' }}>
+            {!editNamespace && <div>
+              <ResourceIcon kind="Project" />
+              {suggestedTargetNamespace}
+              &nbsp;&nbsp;
+              <Button
+                variant="link"
+                className="btn-link--no-btn-default-values"
+                onClick={() => setEditNamespace(!editNamespace)}
+                isInline
+                >
+                Edit
+              </Button>
+            </div>}
+            {(editNamespace && suggestedTargetNamespace) && <div style={{ marginBottom: '20px' }}>
               <RadioInput
                 onChange={(e) => {
                   setUseRecommendedNamespace(true)
