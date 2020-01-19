@@ -390,6 +390,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
 
               {(selectedInstallMode === InstallModeType.InstallModeTypeOwnNamespace) && <NsDropdown
                 id="dropdown-selectbox"
+                additionalKeys={['openshift-test']}
                 selectedKey={selectedTargetNamespace}
                 disabled={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
                 onChange={setTargetNamespace}
@@ -468,6 +469,8 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
             selectedTargetNamespace- {selectedTargetNamespace}
             <br ></br>
             useRecommendedNamespace- {`${useRecommendedNamespace}`}
+            <br ></br>
+            targetNamespaceExists- {`${targetNamespaceExists}`}
           </div>
           <div className="form-group">
             <Tooltip content="The channel to track and receive the updates from.">

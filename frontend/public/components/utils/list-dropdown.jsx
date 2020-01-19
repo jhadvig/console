@@ -53,7 +53,7 @@ class ListDropdown_ extends React.Component {
       }
 
       const state = {};
-      const { resources, dataFilter } = nextProps;
+      const { resources, dataFilter, additionalKeys, selectedKeyKind } = nextProps;
 
       const unsortedList = {};
       _.each(resources, ({ data }, kindLabel) => {
@@ -71,6 +71,18 @@ class ListDropdown_ extends React.Component {
           unsortedList,
         );
       });
+
+      if (additionalKeys) {
+        _.each(additionalKeys, key => {
+          if (unsortedList[key]) {
+            return
+          }
+          unsortedList[`${key}-${selectedKeyKind}`] = {
+            kindLabel: selectedKeyKind,
+            name: key,
+          };
+        })
+      }
 
       const sortedList = {};
       _.keys(unsortedList)
@@ -161,6 +173,7 @@ export const ListDropdown = (props) => {
 };
 
 ListDropdown.propTypes = {
+  additionalKeys: PropTypes.arrayOf(PropTypes.string),
   dataFilter: PropTypes.func,
   desc: PropTypes.string,
   // specify both key/kind
@@ -196,5 +209,5 @@ const NsDropdown_ = (props) => {
     />
   );
 };
-/** @type {React.FC<{dataFilter?: (ns: any) => boolean, desc?: string, disabled?: boolean, selectedKey?: string, selectedKeyKind?: string, fixed?: boolean, placeholder?: string, onChange?: (selectedKey: string, event: React.Event) => void, id?: string}}>} */
+/** @type {React.FC<{dataFilter?: (ns: any) => boolean, desc?: string, disabled?: boolean, additionalKeys?: Array<string>, selectedKey?: string, selectedKeyKind?: string, fixed?: boolean, placeholder?: string, onChange?: (selectedKey: string, event: React.Event) => void, id?: string}}>} */
 export const NsDropdown = connectToFlags(FLAGS.OPENSHIFT)(NsDropdown_);
