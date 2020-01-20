@@ -246,9 +246,18 @@ $co-affinity-row-margin: 15px;
   justify-content: space-between;
 }
 
-.co-create-subscription__monitoring-settings {
-  padding-left: 40px;
-  padding-bottom: 10px;
+// .co-create-subscription__monitoring-settings {
+//   padding-left: 40px;
+//   padding-bottom: 10px;
+// }
+
+.co-create-subscription .dropdown {
+  padding-bottom: 20px;
+}
+
+.co-create-subscription .co-namespace-creation__actions {
+  margin-top: 20px;
+  padding-left: 20px;
 }
 
 .catalog-source__table-row--disabled {

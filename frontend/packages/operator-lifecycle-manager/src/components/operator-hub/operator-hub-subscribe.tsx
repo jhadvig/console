@@ -50,9 +50,11 @@ import {
 } from '../index';
 import { installedFor, supports, providedAPIsFor, isGlobal } from '../operator-group';
 import { CRDCard } from '../clusterserviceversion';
+import './../../style.scss';
 
 export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> = (props) => {
   const [targetNamespace, setTargetNamespace] = React.useState(null);
+  const [watchNamespace, setWatchNamespace] = React.useState(null);
   const [installMode, setInstallMode] = React.useState(null);
   const [updateChannel, setUpdateChannel] = React.useState(null);
   const [approval, setApproval] = React.useState(InstallPlanApproval.Automatic);
@@ -84,40 +86,35 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
       InstallModeType.InstallModeTypeOwnNamespace,
     );
 
-  // const suggestedTargetNamespace = _.get(props, ['packageManifest', 'data', '0', 'metadata', 'annotations', 'operatorframework.io/suggested-namespace']);
-  const suggestedTargetNamespace = "openshift-test"
+  console.log(props.packageManifest.data[0].status.channels);
 
-  let selectedTargetNamespace = targetNamespace || props.targetNamespace;
+  const suggestedTargetNamespace = _.get(props, ['packageManifest', 'data', '0', 'metadata', 'annotations', 'operatorframework.io/suggested-namespace']);
+  // const suggestedTargetNamespace = "openshift-test"
+
+  // let selectedTargetNamespace = targetNamespace || props.targetNamespace;
+  let selectedTargetNamespace = targetNamespace;
+  let selectedWatchNamespace = null;
+
   if (selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces) {
-    if (suggestedTargetNamespace && useRecommendedNamespace) {
-      selectedTargetNamespace = suggestedTargetNamespace;
-    } else {
-      selectedTargetNamespace = _.get(props.operatorGroup, 'data', [] as OperatorGroupKind[]).find(
-        (og) => og.metadata.name === 'global-operators',
-      ).metadata.namespace;
+    selectedTargetNamespace = _.get(props.operatorGroup, 'data', [] as OperatorGroupKind[]).find(
+      (og) => og.metadata.name === 'global-operators',
+    ).metadata.namespace;
+    selectedWatchNamespace = selectedTargetNamespace;
+    if (suggestedTargetNamespace && !useRecommendedNamespace) {
+      selectedTargetNamespace = null
     }
   }
 
-  const operatorGroupsNamespaces: string[] = _.map(props.operatorGroup.data, (og) => og.metadata.name);
-
-  const watchNamespacesOperatorGroupNames: string[] = _.reduce(props.operatorGroup.data, (acc, og: OperatorGroupKind) => {
-    if (og.status.namespaces.length != 1 && og.status.namespaces[0] != '') {
-      acc.push(og.metadata.name);
-    }
-    return acc;
-  }, []); 
-
-  const watchAllNamespacesOperatorGroupNames: string[] = _.reduce(props.operatorGroup.data, (acc, og: OperatorGroupKind) => {
-    if (og.status.namespaces.length == 1 && og.status.namespaces[0] == '') {
-      acc.push(og.metadata.name);
-    }
-    return acc;
-  }, []); 
+  if (suggestedTargetNamespace && useRecommendedNamespace) {
+    selectedTargetNamespace = suggestedTargetNamespace;
+    selectedWatchNamespace = suggestedTargetNamespace;
+  }
 
   const selectedApproval = approval || InstallPlanApproval.Automatic;
 
   React.useEffect(() => {
     if (suggestedTargetNamespace) {
+      setWatchNamespace(suggestedTargetNamespace);
       setTargetNamespace(suggestedTargetNamespace);
       setUseRecommendedNamespace(true);
     }
@@ -131,12 +128,15 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
           setNamespaceError('');
         }
       ).catch(err => {
-        if (_.get(error, 'response.status') === 404) {
+        if (_.get(err, 'response.status') === 404) {
+          setEditNamespace(true);
           setTargetNamespaceExists(false);
         }
         setNamespaceError(err.message);
       });
-    };  
+    } else {
+      setTargetNamespaceExists(true);
+    }
 
     k8sListPartialMetadata(PackageManifestModel, {
       ns: selectedTargetNamespace,
@@ -160,15 +160,55 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
 
   const { installModes } = channels.find((ch) => ch.name === selectedUpdateChannel).currentCSVDesc;
   const singleInstallMode = installModes.find(
-    (m) => m.type === InstallModeType.InstallModeTypeOwnNamespace,
+    (m) => m.type === InstallModeType.InstallModeTypeSingleNamespace,
   );
   const supportsSingle = singleInstallMode && singleInstallMode.supported;
+  /////////////
+  const ownInstallMode = installModes.find(
+    (m) => m.type === InstallModeType.InstallModeTypeOwnNamespace,
+  );
+  const supportsOwn = ownInstallMode && ownInstallMode.supported;
+  /////////////
   const globalInstallMode = installModes.find(
     (m) => m.type === InstallModeType.InstallModeTypeAllNamespaces,
   );
   const supportsGlobal = globalInstallMode && globalInstallMode.supported;
 
-  if (!supportsSingle && !supportsGlobal) {
+  const operatorGroupsNamespaces: string[] = _.map(props.operatorGroup.data, (og) => og.metadata.namespace);
+
+  const watchNamespacesOperatorGroupNames: string[] = _.reduce(props.operatorGroup.data, (acc, og: OperatorGroupKind) => {
+    if (og.status.namespaces.length != 1 && og.status.namespaces[0] != '') {
+      acc.push(og.metadata.name);
+    }
+    return acc;
+  }, []); 
+
+  const watchAllNamespacesOperatorGroupNames: string[] = _.reduce(props.operatorGroup.data, (acc, og: OperatorGroupKind) => {
+    if (og.status.namespaces.length == 1 && og.status.namespaces[0] == '') {
+      acc.push(og.metadata.name);
+    }
+    return acc;
+  }, []); 
+
+  const installNamespaceFilter = (namespace: K8sResourceCommon) => {
+    let keepNamespace: boolean = true;
+    console.log(installModes)
+    if (supportsGlobal) {
+
+    }
+
+
+    const arr = _.remove(operatorGroupsNamespaces, (ogNamespace) => {
+      return _.includes(watchAllNamespacesOperatorGroupNames, ogNamespace)
+    })
+
+    if (_.includes(arr, namespace.metadata.name)) {
+      return false;
+    }
+    return true;
+  };
+
+  if (!supportsSingle && !supportsOwn &&  !supportsGlobal) {
     return (
       <MsgBox
         title={`${_.get(channels, '[0].currentCSVDesc.displayName')} can't be installed`}
@@ -181,8 +221,11 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     if (mode === InstallModeType.InstallModeTypeAllNamespaces && supportsGlobal) {
       return 'Operator will be available in all namespaces.';
     }
-    if (mode === InstallModeType.InstallModeTypeOwnNamespace && supportsSingle) {
+    if (mode === InstallModeType.InstallModeTypeSingleNamespace && supportsSingle) {
       return 'Operator will be available in a single namespace only.';
+    }
+    if (mode === InstallModeType.InstallModeTypeOwnNamespace && supportsOwn) {
+      return 'Operator will be available in his own namespace only.';
     }
     return 'This mode is not supported by this Operator';
   };
@@ -281,6 +324,30 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
       }
     ).catch(({ message = 'Could not create namespace.' }) => setError(message));
   };
+  
+  const canEnableMonitoring = namespace => {
+    if (
+      _.startsWith(namespace, "openshift-") ||
+      _.startsWith(namespace, "kube-") ||
+      _.includes(["default", "logging"], namespace)
+    ) {
+      return true;
+    }
+    return false;
+  };
+  
+  const monitoringCheckbox = () => {
+    return <div className="co-namespace-monitoring__checkbox">
+      <Checkbox
+        id={selectedTargetNamespace}
+        label="Enable operator recommended cluster monitoring on this namespace"
+        onChange={setEnableMonitoring}
+        isChecked={enableMonitoring}
+        name="enableNamespaceMonitoring"
+      />
+      <span className="text-muted">Note: Enabling monitoring will allow any operator or workload running on this namespace to contribute metrics to the cluster metric set.</span>
+    </div>
+  }
 
   const formValid = () =>
     [selectedUpdateChannel, selectedInstallMode, selectedTargetNamespace, selectedApproval].some(
@@ -343,6 +410,14 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     );
   };
 
+  const showWatchNamespaceDropdown = () => {
+    return selectedInstallMode !== InstallModeType.InstallModeTypeAllNamespaces && (supportsSingle || supportsOwn);
+  }
+
+  const showInstallNamespaceDropdown = () => {
+    return editNamespace;
+  }
+
   return (
     <div className="row">
       <div className="col-xs-6">
@@ -376,9 +451,9 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                   setTargetNamespace(null);
                   setCannotResolve(false);
                 }}
-                value={InstallModeType.InstallModeTypeOwnNamespace}
+                value={supportsOwn ? InstallModeType.InstallModeTypeOwnNamespace : InstallModeType.InstallModeTypeSingleNamespace}
                 checked={selectedInstallMode === InstallModeType.InstallModeTypeOwnNamespace}
-                disabled={!supportsSingle}
+                disabled={!supportsSingle && !supportsOwn}
                 title="A specific namespace on the cluster"
               >
                 <div className="co-m-radio-desc">
@@ -388,21 +463,23 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                 </div>
               </RadioInput>
 
-              {(selectedInstallMode === InstallModeType.InstallModeTypeOwnNamespace) && <NsDropdown
-                id="dropdown-selectbox"
-                additionalKeys={['openshift-test']}
-                selectedKey={selectedTargetNamespace}
-                disabled={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
-                onChange={setTargetNamespace}
-              />}
+              {showWatchNamespaceDropdown() && <div className="co-namespace-creation__actions">
+                <NsDropdown
+                  id="watch-namespace-dropdown"
+                  additionalKeys={['openshift-test']}
+                  selectedKey={watchNamespace}
+                  disabled={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
+                  onChange={setWatchNamespace}
+                />
+              </div>}
 
             </div>
           </div>
-          <div className="form-group">
+          <div className="form-group co-create-subscription">
             <h5 className="co-required">Installed Namespace</h5>
             {!editNamespace && <div>
               <ResourceIcon kind="Project" />
-              {suggestedTargetNamespace}
+              {selectedTargetNamespace}
               &nbsp;&nbsp;
               <Button
                 variant="link"
@@ -427,7 +504,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                 <ResourceIcon kind="Project" />
                 <b>{suggestedTargetNamespace}</b>
               </RadioInput>
-              {!targetNamespaceExists && <div style={{ marginTop: '20px' }}>
+              {(useRecommendedNamespace && !targetNamespaceExists) && <div className="co-namespace-creation__actions">
                 <Alert
                   isInline
                   className="co-alert co-alert--scrollable"
@@ -436,16 +513,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                 >
                   <div className="co-pre-line">Namespace <b>{suggestedTargetNamespace}</b> does not exist and will be created.</div>
                 </Alert>
-                {_.startsWith(selectedTargetNamespace, 'openshift-') && <div>
-                  <Checkbox
-                    id={selectedTargetNamespace}
-                    label="Enable operator recommended cluster monitoring on this namespace"
-                    onChange={setEnableMonitoring}
-                    isChecked={enableMonitoring}
-                    name="enableNamespaceMonitoring"
-                  />
-                  <span className="text-muted">Note: Enabling monitoring will allow any operator or workload running on this namespace to contribute metrics to the cluster metric set.</span>
-                </div>}
+                {canEnableMonitoring(selectedTargetNamespace) && monitoringCheckbox()}
 
               </div>}
               <RadioInput
@@ -459,18 +527,35 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
               ></RadioInput>
             </div>}
 
-            {!useRecommendedNamespace && <NsDropdown
-                id="dropdown-selectbox"
+            {showInstallNamespaceDropdown() && <div className="co-namespace-creation__actions"> 
+              <NsDropdown
+                id="install-namespace-dropdown"
                 selectedKey={selectedTargetNamespace}
-                disabled={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
+                dataFilter={installNamespaceFilter}
+                // disabled={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
                 onChange={setTargetNamespace}
-              />}
-
+              />
+              {canEnableMonitoring(selectedTargetNamespace) && monitoringCheckbox()}
+              </div>}
+            <br ></br>
+            selectedWatchNamespace- {selectedWatchNamespace}
+            <br ></br>
+            watchNamespace- {watchNamespace}
+            <br ></br><br ></br>
             selectedTargetNamespace- {selectedTargetNamespace}
+            <br ></br>
+            targetNamespace- {targetNamespace}
+            <br ></br> <br ></br>
+            suggestedTargetNamespace- {suggestedTargetNamespace}
             <br ></br>
             useRecommendedNamespace- {`${useRecommendedNamespace}`}
             <br ></br>
+            editNamespace- {`${editNamespace}`}
+            <br ></br>
+            enableMonitoring- {`${enableMonitoring}`}
+            <br ></br>
             targetNamespaceExists- {`${targetNamespaceExists}`}
+
           </div>
           <div className="form-group">
             <Tooltip content="The channel to track and receive the updates from.">
