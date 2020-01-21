@@ -39,13 +39,8 @@ class ListDropdown_ extends React.Component {
     this.UNSAFE_componentWillReceiveProps(this.props);
   }
 
-<<<<<<< HEAD
   UNSAFE_componentWillReceiveProps(nextProps) {
     const { loaded, loadError } = nextProps;
-=======
-  componentWillReceiveProps(nextProps) {
-    const { loaded, loadError, selectedKey } = nextProps;
->>>>>>> filterring partialy + wrong NSdropdown logic
     if (!loaded) {
       return;
     }

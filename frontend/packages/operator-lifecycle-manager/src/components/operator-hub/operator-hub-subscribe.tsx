@@ -63,7 +63,6 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   const [targetNamespaceExists, setTargetNamespaceExists] = React.useState(false);
   const [namespaceError, setNamespaceError] = React.useState('');
   const [installMode, setInstallMode] = React.useState(null);
-  const [useRecommendedNamespace, setUseRecommendedNamespace] = React.useState(false)
   const [enableMonitoring, setEnableMonitoring] = React.useState(false);
   const [error, setError] = React.useState('');
 
@@ -76,6 +75,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     catalogSourceNamespace,
   } = props.packageManifest.data[0].status;
 
+  const selectedApproval = approval || InstallPlanApproval.Automatic;
   const selectedUpdateChannel = updateChannel || defaultChannelFor(props.packageManifest.data[0]);
   const selectedInstallMode = installMode || supportedInstallModesFor(props.packageManifest.data[0])(selectedUpdateChannel).reduce(
     (preferredInstallMode, mode) =>
@@ -86,7 +86,9 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   );
 
   const suggestedTargetNamespace = _.get(props, ['packageManifest', 'data', '0', 'metadata', 'annotations', 'operatorframework.io/suggested-namespace']);
-  // const suggestedTargetNamespace = "openshift-test"
+  // const suggestedTargetNamespace = "openshift-console"
+  const [useRecommendedNamespace, setUseRecommendedNamespace] = React.useState(!!suggestedTargetNamespace)
+
   const globalNamespace = _.get(props.operatorGroup, 'data', [] as OperatorGroupKind[]).find(
     (og) => og.metadata.name === 'global-operators',
   ).metadata.namespace;
@@ -94,41 +96,38 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   let selectedTargetNamespace = targetNamespace;
   let selectedWatchNamespace = watchNamespace;
 
-  if (selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces) {
-    selectedTargetNamespace = globalNamespace;
-    selectedWatchNamespace = null;
-  } else {
-    selectedTargetNamespace = selectedWatchNamespace;
-  }
-
   if (suggestedTargetNamespace) {
     selectedTargetNamespace = suggestedTargetNamespace;
     selectedWatchNamespace = suggestedTargetNamespace;
+    if (!useRecommendedNamespace) {
+      selectedTargetNamespace = targetNamespace;
+    }
+  } else {
+    if (selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces) {
+      selectedTargetNamespace = targetNamespace || globalNamespace;
+      selectedWatchNamespace = watchNamespace || globalNamespace;
+    } else {
+      selectedTargetNamespace = targetNamespace;
+      selectedWatchNamespace = watchNamespace;
+    }
   }
-
-  const selectedApproval = approval || InstallPlanApproval.Automatic;
 
   React.useEffect(() => {
     if (installMode) {
-      if (suggestedTargetNamespace) {
-        setWatchNamespace(suggestedTargetNamespace);
-        setUseRecommendedNamespace(true);
-      } else {
+      if (installMode === InstallModeType.InstallModeTypeAllNamespaces) {
         setWatchNamespace(selectedWatchNamespace);
-        // setWatchNamespace(installMode === InstallModeType.InstallModeTypeAllNamespaces ? selectedTargetNamespace : null);
+        setTargetNamespace(selectedTargetNamespace);
+      } else {
+        if (suggestedTargetNamespace) {
+          setWatchNamespace(selectedWatchNamespace);
+          setTargetNamespace(selectedTargetNamespace);
+        }
       }
       setEditNamespace(false);
-    }
-    setInstallMode(selectedInstallMode);
-  }, [installMode])
-
-  React.useEffect(() => {
-    if (suggestedTargetNamespace) {
-      setTargetNamespace(suggestedTargetNamespace);
     } else {
-      setTargetNamespace(selectedTargetNamespace);
+      setInstallMode(selectedInstallMode);
     }
-  }, [watchNamespace])
+  }, [installMode])
 
   React.useEffect(() => {
     if (suggestedTargetNamespace) {
@@ -473,7 +472,10 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   }
 
   const showInstallNamespaceDropdown = () => {
-    return editNamespace;
+    if (suggestedTargetNamespace) {
+      return editNamespace && !useRecommendedNamespace;
+    }
+    return editNamespace
   }
 
   const showEditInstallNamespace =() => {
@@ -493,8 +495,8 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
               <RadioInput
                 onChange={(e) => {
                   setInstallMode(e.target.value);
-                  // setTargetNamespace(null);
-                  // setWatchNamespace(null);
+                  setTargetNamespace(null);
+                  setWatchNamespace(null);
                   // setCannotResolve(false);
                 }}
                 value={InstallModeType.InstallModeTypeAllNamespaces}
@@ -514,8 +516,8 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
               <RadioInput
                 onChange={(e) => {
                   setInstallMode(e.target.value);
-                  // setTargetNamespace(null);
-                  // setWatchNamespace(null);
+                  setTargetNamespace(null);
+                  setWatchNamespace(null);
                   // setCannotResolve(false);
                 }}
                 value={supportsOwn ? InstallModeType.InstallModeTypeOwnNamespace : InstallModeType.InstallModeTypeSingleNamespace}
@@ -538,6 +540,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                   disabled={installMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
                   onChange={(ns) => {
                     setWatchNamespace(ns)
+                    setTargetNamespace(ns)
                   }}
                 />
               </div>}
@@ -548,7 +551,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
             <h5 className="co-required">Installed Namespace</h5>
             {showEditInstallNamespace() && <div>
               <ResourceIcon kind="Project" />
-              {targetNamespace}
+              {selectedTargetNamespace}
               &nbsp;&nbsp;
               <Button
                 variant="link"
