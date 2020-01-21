@@ -62,6 +62,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   const [editNamespace, setEditNamespace] = React.useState(false);
   const [targetNamespaceExists, setTargetNamespaceExists] = React.useState(false);
   const [namespaceError, setNamespaceError] = React.useState('');
+  const [installMode, setInstallMode] = React.useState(null);
   const [useRecommendedNamespace, setUseRecommendedNamespace] = React.useState(false)
   const [enableMonitoring, setEnableMonitoring] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -76,7 +77,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   } = props.packageManifest.data[0].status;
 
   const selectedUpdateChannel = updateChannel || defaultChannelFor(props.packageManifest.data[0]);
-  const selectedInstallMode = supportedInstallModesFor(props.packageManifest.data[0])(selectedUpdateChannel).reduce(
+  const selectedInstallMode = installMode || supportedInstallModesFor(props.packageManifest.data[0])(selectedUpdateChannel).reduce(
     (preferredInstallMode, mode) =>
       mode.type === InstallModeType.InstallModeTypeAllNamespaces
         ? InstallModeType.InstallModeTypeAllNamespaces
@@ -86,37 +87,39 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
 
   const suggestedTargetNamespace = _.get(props, ['packageManifest', 'data', '0', 'metadata', 'annotations', 'operatorframework.io/suggested-namespace']);
   // const suggestedTargetNamespace = "openshift-test"
+  const globalNamespace = _.get(props.operatorGroup, 'data', [] as OperatorGroupKind[]).find(
+    (og) => og.metadata.name === 'global-operators',
+  ).metadata.namespace;
 
-  // let selectedTargetNamespace = targetNamespace || props.targetNamespace;
   let selectedTargetNamespace = targetNamespace;
-  let selectedWatchNamespace = null;
+  let selectedWatchNamespace = watchNamespace;
 
   if (selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces) {
-    selectedTargetNamespace = _.get(props.operatorGroup, 'data', [] as OperatorGroupKind[]).find(
-      (og) => og.metadata.name === 'global-operators',
-    ).metadata.namespace;
-    selectedWatchNamespace = selectedTargetNamespace;
-    if (suggestedTargetNamespace && !useRecommendedNamespace) {
-      selectedTargetNamespace = null
-    }
+    selectedTargetNamespace = globalNamespace;
+    selectedWatchNamespace = null;
+  } else {
+    selectedTargetNamespace = selectedWatchNamespace;
   }
 
-  if (suggestedTargetNamespace && useRecommendedNamespace) {
+  if (suggestedTargetNamespace) {
     selectedTargetNamespace = suggestedTargetNamespace;
     selectedWatchNamespace = suggestedTargetNamespace;
   }
 
   const selectedApproval = approval || InstallPlanApproval.Automatic;
 
-  const [installMode, setInstallMode] = React.useState(selectedInstallMode);
   React.useEffect(() => {
-    if (suggestedTargetNamespace) {
-      setWatchNamespace(suggestedTargetNamespace);
-      setUseRecommendedNamespace(true);
-    } else {
-      setWatchNamespace(null);
-      // setWatchNamespace(installMode === InstallModeType.InstallModeTypeAllNamespaces ? selectedTargetNamespace : null);
+    if (installMode) {
+      if (suggestedTargetNamespace) {
+        setWatchNamespace(suggestedTargetNamespace);
+        setUseRecommendedNamespace(true);
+      } else {
+        setWatchNamespace(selectedWatchNamespace);
+        // setWatchNamespace(installMode === InstallModeType.InstallModeTypeAllNamespaces ? selectedTargetNamespace : null);
+      }
+      setEditNamespace(false);
     }
+    setInstallMode(selectedInstallMode);
   }, [installMode])
 
   React.useEffect(() => {
@@ -474,7 +477,10 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   }
 
   const showEditInstallNamespace =() => {
-    return (watchNamespace && !editNamespace)
+    if (selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !editNamespace) {
+      return true
+    }
+    return ( watchNamespace && !editNamespace)
   }
 
   return (
@@ -528,7 +534,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                 <NsDropdown
                   id="watch-namespace-dropdown"
                   additionalKeys={['openshift-test']}
-                  selectedKey={watchNamespace}
+                  selectedKey={selectedWatchNamespace}
                   disabled={installMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
                   onChange={(ns) => {
                     setWatchNamespace(ns)
@@ -583,6 +589,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                 onChange={(e) => {
                   setUseRecommendedNamespace(false)
                   setTargetNamespace(null);
+                  setCannotResolve(false);
                 }}
                 value={suggestedTargetNamespace}
                 checked={!useRecommendedNamespace}
@@ -597,7 +604,8 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                 dataFilter={installNamespaceFilter()}
                 // disabled={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
                 onChange={(ns) => {
-                  setTargetNamespace(ns)
+                  setTargetNamespace(ns);
+                  setCannotResolve(false);
                 }}
               />
               {canEnableMonitoring(selectedTargetNamespace) && monitoringCheckbox()}
