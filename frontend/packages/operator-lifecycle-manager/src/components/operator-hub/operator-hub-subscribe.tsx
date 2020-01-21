@@ -55,7 +55,7 @@ import './../../style.scss';
 export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> = (props) => {
   const [targetNamespace, setTargetNamespace] = React.useState(null);
   const [watchNamespace, setWatchNamespace] = React.useState(null);
-  const [installMode, setInstallMode] = React.useState(null);
+
   const [updateChannel, setUpdateChannel] = React.useState(null);
   const [approval, setApproval] = React.useState(InstallPlanApproval.Automatic);
   const [cannotResolve, setCannotResolve] = React.useState(false);
@@ -76,17 +76,13 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   } = props.packageManifest.data[0].status;
 
   const selectedUpdateChannel = updateChannel || defaultChannelFor(props.packageManifest.data[0]);
-  const selectedInstallMode =
-    installMode ||
-    supportedInstallModesFor(props.packageManifest.data[0])(selectedUpdateChannel).reduce(
-      (preferredInstallMode, mode) =>
-        mode.type === InstallModeType.InstallModeTypeAllNamespaces
-          ? InstallModeType.InstallModeTypeAllNamespaces
-          : preferredInstallMode,
-      InstallModeType.InstallModeTypeOwnNamespace,
-    );
-
-  console.log(props.packageManifest.data[0].status.channels);
+  const selectedInstallMode = supportedInstallModesFor(props.packageManifest.data[0])(selectedUpdateChannel).reduce(
+    (preferredInstallMode, mode) =>
+      mode.type === InstallModeType.InstallModeTypeAllNamespaces
+        ? InstallModeType.InstallModeTypeAllNamespaces
+        : preferredInstallMode,
+    InstallModeType.InstallModeTypeOwnNamespace,
+  );
 
   const suggestedTargetNamespace = _.get(props, ['packageManifest', 'data', '0', 'metadata', 'annotations', 'operatorframework.io/suggested-namespace']);
   // const suggestedTargetNamespace = "openshift-test"
@@ -112,17 +108,28 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
 
   const selectedApproval = approval || InstallPlanApproval.Automatic;
 
+  const [installMode, setInstallMode] = React.useState(selectedInstallMode);
   React.useEffect(() => {
     if (suggestedTargetNamespace) {
       setWatchNamespace(suggestedTargetNamespace);
-      setTargetNamespace(suggestedTargetNamespace);
       setUseRecommendedNamespace(true);
+    } else {
+      setWatchNamespace(null);
+      // setWatchNamespace(installMode === InstallModeType.InstallModeTypeAllNamespaces ? selectedTargetNamespace : null);
     }
   }, [installMode])
 
   React.useEffect(() => {
     if (suggestedTargetNamespace) {
-      k8sGet(NamespaceModel, selectedTargetNamespace).then(
+      setTargetNamespace(suggestedTargetNamespace);
+    } else {
+      setTargetNamespace(selectedTargetNamespace);
+    }
+  }, [watchNamespace])
+
+  React.useEffect(() => {
+    if (suggestedTargetNamespace) {
+      k8sGet(NamespaceModel, targetNamespace).then(
         () => {
           setTargetNamespaceExists(true);
           setNamespaceError('');
@@ -139,7 +146,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     }
 
     k8sListPartialMetadata(PackageManifestModel, {
-      ns: selectedTargetNamespace,
+      ns: targetNamespace,
       fieldSelector: `metadata.name=${pkgName}`,
       labelSelector: fromRequirements([
         { key: 'catalog', operator: 'Equals', values: [catalogSource] },
@@ -154,7 +161,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     catalogSourceNamespace,
     pkgName,
     props.packageManifest.data,
-    selectedTargetNamespace,
+    targetNamespace,
     useRecommendedNamespace,
   ]);
 
@@ -181,6 +188,11 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
       acc.push(og.metadata.name);
     }
     return acc;
+  }, []);
+
+  const getSelectedWatchNamespaceConfiguredOperatorGroup = (): string[] => _.reduce(props.operatorGroup.data, (acc, og: OperatorGroupKind) => {
+    _.includes(og.status.namespaces, watchNamespace) && acc.push(og.metadata.name);
+    return acc;
   }, []); 
 
   const watchAllNamespacesOperatorGroupNames: string[] = _.reduce(props.operatorGroup.data, (acc, og: OperatorGroupKind) => {
@@ -190,22 +202,65 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     return acc;
   }, []); 
 
-  const installNamespaceFilter = (namespace: K8sResourceCommon) => {
-    let keepNamespace: boolean = true;
-    console.log(installModes)
-    if (supportsGlobal) {
+  const installNamespaceFilter = () => {
+    const installModesMapping = installModes.reduce((installModesMap, installMode) => {installModesMap[installMode.type]=installMode.supported; return installModesMap}, {})
 
+    switch(true) {
+      case _.isMatch(installModesMapping, {AllNamespaces: true, SingleNamespace: true, OwnNamespace: true}):
+      case _.isMatch(installModesMapping, {AllNamespaces: true, SingleNamespace: false, OwnNamespace: false}):
+      case _.isMatch(installModesMapping, {AllNamespaces: true, SingleNamespace: true, OwnNamespace: false}):
+      case _.isMatch(installModesMapping, {AllNamespaces: true, SingleNamespace: false, OwnNamespace: true}):
+        if (selectedInstallMode == InstallModeType.InstallModeTypeAllNamespaces) {
+          return function(namespace: K8sResourceCommon){
+            const namespacesWithoutOperatorGroup = _.remove(operatorGroupsNamespaces, (ogNamespace) => {
+              return _.includes(watchAllNamespacesOperatorGroupNames, ogNamespace)
+            })
+        
+            if (_.includes(namespacesWithoutOperatorGroup, namespace.metadata.name)) {
+              return false;
+            }
+            return true;
+          }
+        }
+
+        return function(namespace: K8sResourceCommon){
+          const namespacesWithoutOperatorGroup = _.remove(operatorGroupsNamespaces, (ogNamespace) => {
+            const selectedWatchNamespaceConfiguredOperatorGroup = getSelectedWatchNamespaceConfiguredOperatorGroup();
+            return _.includes(selectedWatchNamespaceConfiguredOperatorGroup, ogNamespace)
+          })
+
+          if (_.includes(namespacesWithoutOperatorGroup, namespace.metadata.name)) {
+            return false;
+          }
+          return true;
+        }
+      case _.isMatch(installModesMapping, {AllNamespaces: false, SingleNamespace: true, OwnNamespace: true}):
+        return function(namespace: K8sResourceCommon){
+          const namespacesWithoutOperatorGroup = _.remove(operatorGroupsNamespaces, (ogNamespace) => {
+            const selectedWatchNamespaceConfiguredOperatorGroup = getSelectedWatchNamespaceConfiguredOperatorGroup();
+            return _.includes(selectedWatchNamespaceConfiguredOperatorGroup, ogNamespace)
+          })
+
+          if (_.includes(namespacesWithoutOperatorGroup, namespace.metadata.name)) {
+            return false;
+          }
+          return true;
+        }
+
+      case _.isMatch(installModesMapping, {AllNamespaces: false, SingleNamespace: false, OwnNamespace: true}):
+
+      default:
+        return function(namespace: K8sResourceCommon){
+          const namespacesWithoutOperatorGroup = _.remove(operatorGroupsNamespaces, (ogNamespace) => {
+            return _.includes(watchAllNamespacesOperatorGroupNames, ogNamespace)
+          })
+      
+          if (_.includes(namespacesWithoutOperatorGroup, namespace.metadata.name)) {
+            return false;
+          }
+          return true;
+        }
     }
-
-
-    const arr = _.remove(operatorGroupsNamespaces, (ogNamespace) => {
-      return _.includes(watchAllNamespacesOperatorGroupNames, ogNamespace)
-    })
-
-    if (_.includes(arr, namespace.metadata.name)) {
-      return false;
-    }
-    return true;
   };
 
   if (!supportsSingle && !supportsOwn &&  !supportsGlobal) {
@@ -411,11 +466,15 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   };
 
   const showWatchNamespaceDropdown = () => {
-    return selectedInstallMode !== InstallModeType.InstallModeTypeAllNamespaces && (supportsSingle || supportsOwn);
+    return installMode !== InstallModeType.InstallModeTypeAllNamespaces && (supportsSingle || supportsOwn);
   }
 
   const showInstallNamespaceDropdown = () => {
     return editNamespace;
+  }
+
+  const showEditInstallNamespace =() => {
+    return (watchNamespace && !editNamespace)
   }
 
   return (
@@ -428,11 +487,12 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
               <RadioInput
                 onChange={(e) => {
                   setInstallMode(e.target.value);
-                  setTargetNamespace(null);
-                  setCannotResolve(false);
+                  // setTargetNamespace(null);
+                  // setWatchNamespace(null);
+                  // setCannotResolve(false);
                 }}
                 value={InstallModeType.InstallModeTypeAllNamespaces}
-                checked={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces}
+                checked={installMode === InstallModeType.InstallModeTypeAllNamespaces}
                 disabled={!supportsGlobal}
                 title="All namespaces on the cluster"
                 subTitle="(default)"
@@ -448,11 +508,12 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
               <RadioInput
                 onChange={(e) => {
                   setInstallMode(e.target.value);
-                  setTargetNamespace(null);
-                  setCannotResolve(false);
+                  // setTargetNamespace(null);
+                  // setWatchNamespace(null);
+                  // setCannotResolve(false);
                 }}
                 value={supportsOwn ? InstallModeType.InstallModeTypeOwnNamespace : InstallModeType.InstallModeTypeSingleNamespace}
-                checked={selectedInstallMode === InstallModeType.InstallModeTypeOwnNamespace}
+                checked={installMode === InstallModeType.InstallModeTypeOwnNamespace}
                 disabled={!supportsSingle && !supportsOwn}
                 title="A specific namespace on the cluster"
               >
@@ -468,8 +529,10 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                   id="watch-namespace-dropdown"
                   additionalKeys={['openshift-test']}
                   selectedKey={watchNamespace}
-                  disabled={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
-                  onChange={setWatchNamespace}
+                  disabled={installMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
+                  onChange={(ns) => {
+                    setWatchNamespace(ns)
+                  }}
                 />
               </div>}
 
@@ -477,9 +540,9 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
           </div>
           <div className="form-group co-create-subscription">
             <h5 className="co-required">Installed Namespace</h5>
-            {!editNamespace && <div>
+            {showEditInstallNamespace() && <div>
               <ResourceIcon kind="Project" />
-              {selectedTargetNamespace}
+              {targetNamespace}
               &nbsp;&nbsp;
               <Button
                 variant="link"
@@ -531,9 +594,11 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
               <NsDropdown
                 id="install-namespace-dropdown"
                 selectedKey={selectedTargetNamespace}
-                dataFilter={installNamespaceFilter}
+                dataFilter={installNamespaceFilter()}
                 // disabled={selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
-                onChange={setTargetNamespace}
+                onChange={(ns) => {
+                  setTargetNamespace(ns)
+                }}
               />
               {canEnableMonitoring(selectedTargetNamespace) && monitoringCheckbox()}
               </div>}
@@ -555,6 +620,8 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
             enableMonitoring- {`${enableMonitoring}`}
             <br ></br>
             targetNamespaceExists- {`${targetNamespaceExists}`}
+            <br ></br>
+            installMode- {installMode}
 
           </div>
           <div className="form-group">
