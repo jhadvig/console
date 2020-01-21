@@ -97,11 +97,8 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   let selectedWatchNamespace = watchNamespace;
 
   if (suggestedTargetNamespace) {
-    selectedTargetNamespace = suggestedTargetNamespace;
-    selectedWatchNamespace = suggestedTargetNamespace;
-    if (!useRecommendedNamespace) {
-      selectedTargetNamespace = targetNamespace;
-    }
+    selectedTargetNamespace = targetNamespace || suggestedTargetNamespace;
+    selectedWatchNamespace = watchNamespace || suggestedTargetNamespace;
   } else {
     if (selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces) {
       selectedTargetNamespace = targetNamespace || globalNamespace;
@@ -117,11 +114,11 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
       if (installMode === InstallModeType.InstallModeTypeAllNamespaces) {
         setWatchNamespace(selectedWatchNamespace);
         setTargetNamespace(selectedTargetNamespace);
-      } else {
-        if (suggestedTargetNamespace) {
-          setWatchNamespace(selectedWatchNamespace);
-          setTargetNamespace(selectedTargetNamespace);
-        }
+      }
+
+      if (installMode !== InstallModeType.InstallModeTypeAllNamespaces && suggestedTargetNamespace) {
+        setWatchNamespace(selectedWatchNamespace);
+        setTargetNamespace(selectedTargetNamespace);
       }
       setEditNamespace(false);
     } else {
@@ -539,8 +536,8 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                   selectedKey={selectedWatchNamespace}
                   disabled={installMode === InstallModeType.InstallModeTypeAllNamespaces && !useRecommendedNamespace}
                   onChange={(ns) => {
-                    setWatchNamespace(ns)
-                    setTargetNamespace(ns)
+                    setWatchNamespace(ns);
+                    !suggestedTargetNamespace && setTargetNamespace(ns);
                   }}
                 />
               </div>}
@@ -565,7 +562,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
             {(editNamespace && suggestedTargetNamespace) && <div style={{ marginBottom: '20px' }}>
               <RadioInput
                 onChange={(e) => {
-                  setUseRecommendedNamespace(true)
+                  setUseRecommendedNamespace(true);
                   setTargetNamespace(suggestedTargetNamespace);
                 }}
                 value={suggestedTargetNamespace}
