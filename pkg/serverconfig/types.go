@@ -6,14 +6,16 @@ package serverconfig
 
 // Config is the top-level console server cli configuration.
 type Config struct {
-	APIVersion    string `yaml:"apiVersion"`
-	Kind          string `yaml:"kind"`
-	ServingInfo   `yaml:"servingInfo"`
-	ClusterInfo   `yaml:"clusterInfo"`
-	Auth          `yaml:"auth"`
-	Customization `yaml:"customization"`
-	Providers     `yaml:"providers"`
-	Helm          `yaml:"helm"`
+	APIVersion     string `yaml:"apiVersion"`
+	Kind           string `yaml:"kind"`
+	ServingInfo    `yaml:"servingInfo"`
+	ClusterInfo    `yaml:"clusterInfo"`
+	Auth           `yaml:"auth"`
+	Customization  `yaml:"customization"`
+	Providers      `yaml:"providers"`
+	Helm           `yaml:"helm"`
+	MonitoringInfo `yaml:"monitoringInfo,omitempty"`
+	LoggingInfo    `yaml:"loggingInfo,omitempty"`
 }
 
 // ServingInfo holds configuration for serving HTTP.
@@ -31,6 +33,20 @@ type ServingInfo struct {
 	CipherSuites          []string      `yaml:"cipherSuites,omitempty"`
 	MaxRequestsInFlight   int64         `yaml:"maxRequestsInFlight,omitempty"`
 	RequestTimeoutSeconds int64         `yaml:"requestTimeoutSeconds,omitempty"`
+}
+
+// Monitoring holds URLs for monitoring related services
+type MonitoringInfo struct {
+	AlertmanagerURL string `yaml:"alertmanagerURL,omitempty"`
+	GrafanaURL      string `yaml:"grafanaURL,omitempty"`
+	PrometheusURL   string `yaml:"prometheusURL,omitempty"`
+	ThanosURL       string `yaml:"thanosURL,omitempty"`
+}
+
+// Logging holds URLs for logging related services
+type LoggingInfo struct {
+	KibanaAppURL      string `yaml:"kibanaAppURL,omitempty"`
+	KibanaInfraAppURL string `yaml:"kibanaInfraAppURL,omitempty"`
 }
 
 // ClusterInfo holds information the about the cluster such as master public URL and console public URL.

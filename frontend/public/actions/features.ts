@@ -1,6 +1,7 @@
 import { Dispatch } from 'react-redux';
 import * as _ from 'lodash-es';
 import { ActionType as Action, action } from 'typesafe-actions';
+import { safeLoad } from 'js-yaml';
 import { FLAGS } from '@console/shared/src/constants/common';
 import { GroupModel, SelfSubjectAccessReviewModel, UserModel } from '../models';
 import { k8sBasePath, ClusterVersionKind, k8sCreate } from '../module/k8s';
@@ -193,19 +194,23 @@ const detectCanCreateProject = (dispatch) =>
     },
   );
 
-const monitoringConfigMapPath = `${k8sBasePath}/api/v1/namespaces/openshift-monitoring/configmaps/sharing-config`;
+const monitoringConfigMapPath = `${k8sBasePath}/api/v1/namespaces/openshift-console/configmaps/console-config`;
 const detectMonitoringURLs = (dispatch) =>
   coFetchJSON(monitoringConfigMapPath).then(
     (res) => {
-      const { alertmanagerURL, grafanaURL, prometheusURL } = res.data;
-      if (!_.isEmpty(alertmanagerURL)) {
-        dispatch(setMonitoringURL(MonitoringRoutes.Alertmanager, alertmanagerURL));
-      }
-      if (!_.isEmpty(grafanaURL)) {
-        dispatch(setMonitoringURL(MonitoringRoutes.Grafana, grafanaURL));
-      }
-      if (!_.isEmpty(prometheusURL)) {
-        dispatch(setMonitoringURL(MonitoringRoutes.Prometheus, prometheusURL));
+      const json = safeLoad(res.data['console-config.yaml']);
+      const monitoringURLs = _.get(json, 'clusterInfo.monitoringURLs');
+      if (!_.isEmpty(monitoringURLs)) {
+        const { alertmanagerURL, grafanaURL, prometheusURL } = monitoringURLs;
+        if (!_.isEmpty(alertmanagerURL)) {
+          dispatch(setMonitoringURL(MonitoringRoutes.Alertmanager, alertmanagerURL));
+        }
+        if (!_.isEmpty(grafanaURL)) {
+          dispatch(setMonitoringURL(MonitoringRoutes.Grafana, grafanaURL));
+        }
+        if (!_.isEmpty(prometheusURL)) {
+          dispatch(setMonitoringURL(MonitoringRoutes.Prometheus, prometheusURL));
+        }
       }
     },
     (err) => {
@@ -215,11 +220,12 @@ const detectMonitoringURLs = (dispatch) =>
     },
   );
 
-const loggingConfigMapPath = `${k8sBasePath}/api/v1/namespaces/openshift-logging/configmaps/sharing-config`;
+const loggingConfigMapPath = `${k8sBasePath}/api/v1/namespaces/openshift-console/configmaps/console-config`;
 const detectLoggingURL = (dispatch) =>
   coFetchJSON(loggingConfigMapPath).then(
     (res) => {
-      const { kibanaAppURL } = res.data;
+      const json = safeLoad(res.data['console-config.yaml']);
+      const kibanaAppURL = _.get(json, 'clusterInfo.loggingURLs.kibanaAppURL');
       if (!_.isEmpty(kibanaAppURL)) {
         dispatch(setMonitoringURL(MonitoringRoutes.Kibana, kibanaAppURL));
       }

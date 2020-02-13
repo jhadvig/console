@@ -65,6 +65,12 @@ type jsGlobals struct {
 	StatuspageID             string `json:"statuspageID"`
 	DocumentationBaseURL     string `json:"documentationBaseURL"`
 	LoadTestFactor           int    `json:"loadTestFactor"`
+	AlertmanagerURL          string `json:"alertmanagerURL"`
+	GrafanaURL               string `json:"grafanaURL"`
+	PrometheusURL            string `json:"prometheusURL"`
+	ThanosURL                string `json:"thanosURL"`
+	KibanaURL                string `json:"kibanaURL"`
+	KibanaInfraURL           string `json:"kibanaInfraURL"`
 }
 
 type Server struct {
@@ -94,6 +100,13 @@ type Server struct {
 	// A lister for resource listing of a particular kind
 	MonitoringDashboardConfigMapLister *ResourceLister
 	HelmChartRepoProxyConfig           *proxy.Config
+	// Monitoring and Logging related URLs
+	AlertmanagerURL *url.URL
+	GrafanaURL      *url.URL
+	PrometheusURL   *url.URL
+	ThanosURL       *url.URL
+	KibanaURL       *url.URL
+	KibanaInfraURL  *url.URL
 }
 
 func (s *Server) authDisabled() bool {
@@ -337,6 +350,12 @@ func (s *Server) indexHandler(w http.ResponseWriter, r *http.Request) {
 		CustomProductName:    s.CustomProductName,
 		StatuspageID:         s.StatuspageID,
 		DocumentationBaseURL: s.DocumentationBaseURL.String(),
+		AlertmanagerURL:      s.AlertmanagerURL.String(),
+		GrafanaURL:           s.GrafanaURL.String(),
+		PrometheusURL:        s.PrometheusURL.String(),
+		ThanosURL:            s.ThanosURL.String(),
+		KibanaURL:            s.KibanaURL.String(),
+		KibanaInfraURL:       s.KibanaInfraURL.String(),
 		LoadTestFactor:       s.LoadTestFactor,
 	}
 

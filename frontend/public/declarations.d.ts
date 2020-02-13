@@ -32,6 +32,12 @@ declare interface Window {
     prometheusTenancyBaseURL: string;
     requestTokenURL: string;
     statuspageID: string;
+    alertmanagerURL: string;
+    grafanaURL: string;
+    prometheusURL: string;
+    thanosURL: string;
+    kibanaAppURL: string;
+    kibanaInfraAppURL: string;
   };
   windowError?: boolean;
   __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: Function;

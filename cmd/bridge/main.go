@@ -107,6 +107,14 @@ func main() {
 	fStatuspageID := fs.String("statuspage-id", "", "Unique ID assigned by statuspage.io page that provides status info.")
 	fDocumentationBaseURL := fs.String("documentation-base-url", "", "The base URL for documentation links.")
 
+	fAlermanagerURL := fs.String("alermanager-url", "", "Alertmanager monitoring URL.")
+	fGrafanaURL := fs.String("grafana-url", "", "Grafana monitoring URL.")
+	fPrometheusURL := fs.String("prometheus-url", "", "Prometheus monitoring URL.")
+	fThanosURL := fs.String("thanos-url", "", "Thanos monitoring URL.")
+
+	fKibanaURL := fs.String("kibana-url", "", "Public Kibana URL for non-infrastructure namespaces.")
+	fKibanaInfraURL := fs.String("kibana-infra-url", "", "Public Kibana URL for infrastructure namespaces")
+
 	fLoadTestFactor := fs.Int("load-test-factor", 0, "DEV ONLY. The factor used to multiply k8s API list responses for load testing purposes.")
 
 	helmConfig := chartproxy.RegisterFlags(fs)
@@ -159,6 +167,32 @@ func main() {
 		documentationBaseURL = bridge.ValidateFlagIsURL("documentation-base-url", *fDocumentationBaseURL)
 	}
 
+	alertmanagerURL := &url.URL{}
+	if *fAlermanagerURL != "" {
+		alertmanagerURL = bridge.ValidateFlagIsURL("alermanager-url", *fAlermanagerURL)
+	}
+	grafanaURL := &url.URL{}
+	if *fGrafanaURL != "" {
+		grafanaURL = bridge.ValidateFlagIsURL("grafana-url", *fGrafanaURL)
+	}
+	prometheusURL := &url.URL{}
+	if *fPrometheusURL != "" {
+		prometheusURL = bridge.ValidateFlagIsURL("prometheus-url", *fPrometheusURL)
+	}
+	thanosURL := &url.URL{}
+	if *fThanosURL != "" {
+		thanosURL = bridge.ValidateFlagIsURL("thanos-url", *fThanosURL)
+	}
+
+	kibanaURL := &url.URL{}
+	if *fKibanaURL != "" {
+		kibanaURL = bridge.ValidateFlagIsURL("kibana-url", *fKibanaURL)
+	}
+	kibanaInfraURL := &url.URL{}
+	if *fKibanaInfraURL != "" {
+		kibanaInfraURL = bridge.ValidateFlagIsURL("kibana-infra-url", *fKibanaInfraURL)
+	}
+
 	branding := *fBranding
 	if branding == "origin" {
 		branding = "okd"
@@ -189,6 +223,12 @@ func main() {
 		CustomLogoFile:       *fCustomLogoFile,
 		StatuspageID:         *fStatuspageID,
 		DocumentationBaseURL: documentationBaseURL,
+		AlertmanagerURL:      alertmanagerURL,
+		GrafanaURL:           grafanaURL,
+		PrometheusURL:        prometheusURL,
+		ThanosURL:            thanosURL,
+		KibanaURL:            kibanaURL,
+		KibanaInfraURL:       kibanaInfraURL,
 		LoadTestFactor:       *fLoadTestFactor,
 	}
 
