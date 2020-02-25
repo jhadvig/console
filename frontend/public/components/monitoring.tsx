@@ -23,8 +23,6 @@ import { coFetchJSON } from '../co-fetch';
 import {
   alertState,
   AlertStates,
-  connectToURLs,
-  MonitoringRoutes,
   silenceState,
   SilenceStates,
 } from '../reducers/monitoring';
@@ -772,18 +770,15 @@ const AlertsPageDescription = () => (
   </p>
 );
 
-const HeaderAlertmanagerLink_ = ({ path, urls }) =>
-  _.isEmpty(urls[MonitoringRoutes.Alertmanager]) ? null : (
+const HeaderAlertmanagerLink = ({ path }) =>
+  _.isEmpty(window.SERVER_FLAGS.alertmanagerURL) ? null : (
     <span className="monitoring-header-link">
       <ExternalLink
-        href={`${urls[MonitoringRoutes.Alertmanager]}${path || ''}`}
+        href={`${window.SERVER_FLAGS.alertmanagerURL}${path || ''}`}
         text="Alertmanager UI"
       />
     </span>
   );
-const HeaderAlertmanagerLink = connectToURLs(MonitoringRoutes.Alertmanager)(
-  HeaderAlertmanagerLink_,
-);
 
 const alertsRowFilter = {
   type: 'alert-state',

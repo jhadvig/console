@@ -64,13 +64,13 @@ type jsGlobals struct {
 	CustomLogoURL            string `json:"customLogoURL"`
 	StatuspageID             string `json:"statuspageID"`
 	DocumentationBaseURL     string `json:"documentationBaseURL"`
-	LoadTestFactor           int    `json:"loadTestFactor"`
 	AlertmanagerURL          string `json:"alertmanagerURL"`
 	GrafanaURL               string `json:"grafanaURL"`
 	PrometheusURL            string `json:"prometheusURL"`
 	ThanosURL                string `json:"thanosURL"`
 	KibanaURL                string `json:"kibanaURL"`
 	KibanaInfraURL           string `json:"kibanaInfraURL"`
+	LoadTestFactor           int    `json:"loadTestFactor"`
 }
 
 type Server struct {

@@ -5,7 +5,6 @@ import { NavItemSeparator } from '@patternfly/react-core';
 import { FLAGS } from '@console/shared';
 import { formatNamespacedRouteForResource } from '@console/shared/src/utils';
 import { featureReducerName } from '../../reducers/features';
-import { monitoringReducerName, MonitoringRoutes } from '../../reducers/monitoring';
 
 import {
   BuildConfigModel,
@@ -59,7 +58,7 @@ const apiExplorerStartsWith = ['api-explorer', 'api-resource'];
 
 const monitoringNavSectionStateToProps = (state) => ({
   canAccess: !!state[featureReducerName].get(FLAGS.CAN_GET_NS),
-  kibanaURL: state[monitoringReducerName].get(MonitoringRoutes.Kibana),
+  kibanaURL: window.SERVER_FLAGS.kibanaURL,
 });
 
 const MonitoringNavSection_ = ({ canAccess, kibanaURL }) => {

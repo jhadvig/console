@@ -1,14 +1,11 @@
 import { Dispatch } from 'react-redux';
 import * as _ from 'lodash-es';
 import { ActionType as Action, action } from 'typesafe-actions';
-import { safeLoad } from 'js-yaml';
 import { FLAGS } from '@console/shared/src/constants/common';
 import { GroupModel, SelfSubjectAccessReviewModel, UserModel } from '../models';
 import { k8sBasePath, ClusterVersionKind, k8sCreate } from '../module/k8s';
 import { receivedResources } from './k8s';
 import { coFetchJSON } from '../co-fetch';
-import { MonitoringRoutes } from '../reducers/monitoring';
-import { setMonitoringURL } from './monitoring';
 import * as plugins from '../plugins';
 import { setClusterID, setCreateProjectMessage, setUser, setConsoleLinks } from './common';
 
@@ -194,49 +191,6 @@ const detectCanCreateProject = (dispatch) =>
     },
   );
 
-const monitoringConfigMapPath = `${k8sBasePath}/api/v1/namespaces/openshift-console/configmaps/console-config`;
-const detectMonitoringURLs = (dispatch) =>
-  coFetchJSON(monitoringConfigMapPath).then(
-    (res) => {
-      const json = safeLoad(res.data['console-config.yaml']);
-      const monitoringURLs = _.get(json, 'clusterInfo.monitoringURLs');
-      if (!_.isEmpty(monitoringURLs)) {
-        const { alertmanagerURL, grafanaURL, prometheusURL } = monitoringURLs;
-        if (!_.isEmpty(alertmanagerURL)) {
-          dispatch(setMonitoringURL(MonitoringRoutes.Alertmanager, alertmanagerURL));
-        }
-        if (!_.isEmpty(grafanaURL)) {
-          dispatch(setMonitoringURL(MonitoringRoutes.Grafana, grafanaURL));
-        }
-        if (!_.isEmpty(prometheusURL)) {
-          dispatch(setMonitoringURL(MonitoringRoutes.Prometheus, prometheusURL));
-        }
-      }
-    },
-    (err) => {
-      if (!_.includes([401, 403, 404, 500], _.get(err, 'response.status'))) {
-        setTimeout(() => detectMonitoringURLs(dispatch), 15000);
-      }
-    },
-  );
-
-const loggingConfigMapPath = `${k8sBasePath}/api/v1/namespaces/openshift-console/configmaps/console-config`;
-const detectLoggingURL = (dispatch) =>
-  coFetchJSON(loggingConfigMapPath).then(
-    (res) => {
-      const json = safeLoad(res.data['console-config.yaml']);
-      const kibanaAppURL = _.get(json, 'clusterInfo.loggingURLs.kibanaAppURL');
-      if (!_.isEmpty(kibanaAppURL)) {
-        dispatch(setMonitoringURL(MonitoringRoutes.Kibana, kibanaAppURL));
-      }
-    },
-    (err) => {
-      if (!_.includes([401, 403, 404, 500], _.get(err, 'response.status'))) {
-        setTimeout(() => detectLoggingURL(dispatch), 15000);
-      }
-    },
-  );
-
 const detectUser = (dispatch) =>
   coFetchJSON('api/kubernetes/apis/user.openshift.io/v1/users/~').then(
     (user) => {
@@ -284,10 +238,8 @@ export const detectFeatures = () => (dispatch: Dispatch) =>
   [
     detectOpenShift,
     detectCanCreateProject,
-    detectMonitoringURLs,
     detectClusterVersion,
     detectUser,
-    detectLoggingURL,
     detectConsoleLinks,
     ...ssarCheckActions,
     ...plugins.registry

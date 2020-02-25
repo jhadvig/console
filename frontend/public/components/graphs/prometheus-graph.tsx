@@ -6,12 +6,11 @@ import { Link } from 'react-router-dom';
 
 import { FLAGS } from '@console/shared';
 import { featureReducerName } from '../../reducers/features';
-import { MonitoringRoutes } from '../../reducers/monitoring';
 import { getActivePerspective, getActiveNamespace } from '../../reducers/ui';
 import { RootState } from '../../redux';
 
-export const getPrometheusExpressionBrowserURL = (urls, queries): string => {
-  const base = urls && urls[MonitoringRoutes.Prometheus];
+export const getPrometheusExpressionBrowserURL = (queries): string => {
+  const base = window.SERVER_FLAGS.prometheusURL;
   if (!base || _.isEmpty(queries)) {
     return null;
   }

@@ -36,8 +36,8 @@ declare interface Window {
     grafanaURL: string;
     prometheusURL: string;
     thanosURL: string;
-    kibanaAppURL: string;
-    kibanaInfraAppURL: string;
+    kibanaURL: string;
+    kibanaInfraURL: string;
   };
   windowError?: boolean;
   __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: Function;
