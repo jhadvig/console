@@ -61,7 +61,6 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   const [updateChannel, setUpdateChannel] = React.useState(null);
   const [approval, setApproval] = React.useState(InstallPlanApproval.Automatic);
   const [cannotResolve, setCannotResolve] = React.useState(false);
-  const [suggestedNamespace, setSuggestedNamespace] = React.useState(null);
   const [suggestedNamespaceExists, setSuggestedNamespaceExists] = React.useState(false);
   const [
     useSuggestedNSForSingleInstallMode,
@@ -92,7 +91,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
 
   const { currentCSVDesc } = channels.find((ch) => ch.name === selectedUpdateChannel);
   const { installModes = [] } = currentCSVDesc;
-  const suggestedNamespaceName =
+  const suggestedNamespace =
     currentCSVDesc.annotations?.['operatorframework.io/suggested-namespace'];
   const operatorRequestsMonitoring =
     currentCSVDesc.annotations?.['operatorframework.io/cluster-monitoring'] === 'true';
@@ -107,31 +106,28 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
 
   let selectedTargetNamespace = targetNamespace || props.targetNamespace;
   if (selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces) {
-    if (suggestedNamespaceName) {
-      items[suggestedNamespaceName] = (
-        <ResourceName kind="Project" name={`${suggestedNamespaceName} (Operator recommended)`} />
+    if (suggestedNamespace) {
+      items[suggestedNamespace] = (
+        <ResourceName kind="Project" name={`${suggestedNamespace} (Operator recommended)`} />
       );
-      selectedTargetNamespace = targetNamespace || suggestedNamespaceName;
+      selectedTargetNamespace = targetNamespace || suggestedNamespace;
     } else {
       selectedTargetNamespace = globalNS;
     }
   }
   const isSuggestedNamespaceSelected =
-    suggestedNamespaceName && suggestedNamespaceName === selectedTargetNamespace;
+    suggestedNamespace && suggestedNamespace === selectedTargetNamespace;
   const selectedApproval = approval || InstallPlanApproval.Automatic;
 
   React.useEffect(() => {
-    if (!suggestedNamespaceName) {
+    if (!suggestedNamespace) {
       return;
     }
-    setTargetNamespace(suggestedNamespaceName);
-    k8sGet(NamespaceModel, suggestedNamespaceName)
-      .then((ns) => {
-        setSuggestedNamespaceExists(true);
-        setSuggestedNamespace(ns);
-      })
+    setTargetNamespace(suggestedNamespace);
+    k8sGet(NamespaceModel, suggestedNamespace)
+      .then((ns) => setSuggestedNamespaceExists(true))
       .catch(() => setSuggestedNamespaceExists(false));
-  }, [suggestedNamespaceName]);
+  }, [suggestedNamespace]);
 
   React.useEffect(() => {
     k8sListPartialMetadata(PackageManifestModel, {
@@ -204,9 +200,6 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
 
     return _.intersection(existingAPIs, providedAPIs);
   };
-
-  const suggestedNamespaceRequestsMonitoring = (namespace) =>
-    namespace?.metadata?.labels?.['openshift.io/cluster-monitoring'] === 'true';
 
   const submit = async () => {
     // Clear any previous errors.
@@ -296,34 +289,10 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     };
 
     try {
-      if (isSuggestedNamespaceSelected) {
-        if (!suggestedNamespaceExists) {
-          await k8sCreate(NamespaceModel, ns);
-        } else {
-          const labels = {
-            ...suggestedNamespace.metadata.labels,
-            'openshift.io/cluster-monitoring': 'true',
-          };
-          const patch = [{ op: 'add', path: '/metadata/labels', value: labels }];
-          await k8sPatch(NamespaceModel, suggestedNamespace, patch);
-        }
-        if (
-          operatorRequestsMonitoring &&
-          (suggestedNamespaceRequestsMonitoring(suggestedNamespace) || enableMonitoring)
-        ) {
-          await k8sGet(RoleModel, rbacName, selectedTargetNamespace).catch((err) => {
-            if (err.response.status === 404) {
-              return k8sCreate(RoleModel, role);
-            }
-            return err;
-          });
-          await k8sGet(RoleBindingModel, rbacName, selectedTargetNamespace).catch((err) => {
-            if (err.response.status === 404) {
-              return k8sCreate(RoleBindingModel, roleBinding);
-            }
-            return err;
-          });
-        }
+      if (isSuggestedNamespaceSelected && !suggestedNamespaceExists) {
+        await k8sCreate(NamespaceModel, ns);
+        await k8sCreate(RoleModel, role);
+        await k8sCreate(RoleBindingModel, roleBinding)
       }
       if (
         !props.operatorGroup.data.some(
@@ -413,10 +382,9 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
 
   const showMonitoringCheckbox =
     operatorRequestsMonitoring &&
-    !suggestedNamespaceRequestsMonitoring(suggestedNamespace) &&
     _.startsWith(selectedTargetNamespace, 'openshift-');
 
-  const createNamespaceAndEnableMonitoring = (
+  const suggestedNamespaceDetails = (
     <>
       {!suggestedNamespaceExists && (
         <Alert
@@ -425,7 +393,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
           variant="info"
           title="Namespace creation"
         >
-          Namespace <b>{suggestedNamespaceName}</b> does not exist and will be created.
+          Namespace <b>{suggestedNamespace}</b> does not exist and will be created.
         </Alert>
       )}
       {showMonitoringCheckbox && (
@@ -485,11 +453,11 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
           }}
         />
       </div>
-      {isSuggestedNamespaceSelected && createNamespaceAndEnableMonitoring}
+      {isSuggestedNamespaceSelected && suggestedNamespaceDetails}
     </>
   );
 
-  const singleNamespaceInstallMode = !suggestedNamespaceName ? (
+  const singleNamespaceInstallMode = !suggestedNamespace ? (
     <NsDropdown
       id="dropdown-selectbox"
       selectedKey={selectedTargetNamespace}
@@ -500,25 +468,25 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
       <RadioInput
         onChange={() => {
           setUseSuggestedNSForSingleInstallMode(true);
-          setTargetNamespace(suggestedNamespaceName);
+          setTargetNamespace(suggestedNamespace);
         }}
-        value={suggestedNamespaceName}
+        value={suggestedNamespace}
         checked={useSuggestedNSForSingleInstallMode}
         title="Operator recommended namespace:"
       >
         {' '}
         <ResourceIcon kind="Project" />
-        <b>{suggestedNamespaceName}</b>
+        <b>{suggestedNamespace}</b>
       </RadioInput>
       {useSuggestedNSForSingleInstallMode &&
         isSuggestedNamespaceSelected &&
-        createNamespaceAndEnableMonitoring}
+        suggestedNamespaceDetails}
       <RadioInput
         onChange={() => {
           setUseSuggestedNSForSingleInstallMode(false);
           setTargetNamespace(null);
         }}
-        value={suggestedNamespaceName}
+        value={suggestedNamespace}
         checked={!useSuggestedNSForSingleInstallMode}
         title="Pick an existing namespace"
       />
@@ -578,7 +546,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                 onChange={(e) => {
                   setInstallMode(e.target.value);
                   setTargetNamespace(
-                    useSuggestedNSForSingleInstallMode ? suggestedNamespaceName : null,
+                    useSuggestedNSForSingleInstallMode ? suggestedNamespace : null,
                   );
                   setCannotResolve(false);
                 }}
