@@ -24,7 +24,6 @@ import {
   k8sCreate,
   k8sGet,
   k8sListPartialMetadata,
-  k8sPatch,
   kindForReference,
   referenceForModel,
 } from '@console/internal/module/k8s';
@@ -125,7 +124,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     }
     setTargetNamespace(suggestedNamespace);
     k8sGet(NamespaceModel, suggestedNamespace)
-      .then((ns) => setSuggestedNamespaceExists(true))
+      .then(() => setSuggestedNamespaceExists(true))
       .catch(() => setSuggestedNamespaceExists(false));
   }, [suggestedNamespace]);
 
@@ -381,21 +380,18 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   };
 
   const showMonitoringCheckbox =
-    operatorRequestsMonitoring &&
-    _.startsWith(selectedTargetNamespace, 'openshift-');
+    operatorRequestsMonitoring && _.startsWith(selectedTargetNamespace, 'openshift-');
 
-  const suggestedNamespaceDetails = (
+  const suggestedNamespaceDetails = isSuggestedNamespaceSelected && !suggestedNamespaceExists && (
     <>
-      {!suggestedNamespaceExists && (
-        <Alert
-          isInline
-          className="co-alert co-alert--scrollable"
-          variant="info"
-          title="Namespace creation"
-        >
-          Namespace <b>{suggestedNamespace}</b> does not exist and will be created.
-        </Alert>
-      )}
+      <Alert
+        isInline
+        className="co-alert co-alert--scrollable"
+        variant="info"
+        title="Namespace creation"
+      >
+        Namespace <b>{suggestedNamespace}</b> does not exist and will be created.
+      </Alert>
       {showMonitoringCheckbox && (
         <div className="co-form-subsection">
           <Checkbox
@@ -453,7 +449,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
           }}
         />
       </div>
-      {isSuggestedNamespaceSelected && suggestedNamespaceDetails}
+      {suggestedNamespaceDetails}
     </>
   );
 
@@ -478,9 +474,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
         <ResourceIcon kind="Project" />
         <b>{suggestedNamespace}</b>
       </RadioInput>
-      {useSuggestedNSForSingleInstallMode &&
-        isSuggestedNamespaceSelected &&
-        suggestedNamespaceDetails}
+      {useSuggestedNSForSingleInstallMode && suggestedNamespaceDetails}
       <RadioInput
         onChange={() => {
           setUseSuggestedNSForSingleInstallMode(false);
