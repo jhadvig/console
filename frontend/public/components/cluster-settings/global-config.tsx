@@ -28,10 +28,26 @@ const viewAPIExplorerMenuItem = (name: string, apiExplorerLink: string) => ({
   href: apiExplorerLink,
 });
 
+const clusterVersionItems = [{
+  label: 'Configure Dicsonnected',
+  href: '/settings/configure-disconnected',
+}];
+
 const oauthMenuItems = _.map(addIDPItems, (label: string, id: string) => ({
   label,
   href: `/settings/idp/${id}`,
 }));
+
+const getKindSpecificItems = (kind: string) => {
+  switch (kind) {
+    case 'OAuth':
+      return oauthMenuItems;
+    case 'ClusterVersion':
+      return clusterVersionItems;
+    default:
+      return [];  
+  }
+}
 
 const ItemRow = ({ item }) => {
   return (
@@ -94,6 +110,7 @@ class GlobalConfigPage_ extends React.Component<GlobalConfigPageProps, GlobalCon
         .map((item) => {
           const apiExplorerLink = `/api-resource/cluster/${referenceForModel(item.model)}`;
           const resourceLink = resourcePathFromModel(item.model, item.name, item.namespace);
+          const kindSpecificItems = getKindSpecificItems(item.kind);
           return {
             label: item.kind,
             id: item.uid,
@@ -102,7 +119,7 @@ class GlobalConfigPage_ extends React.Component<GlobalConfigPageProps, GlobalCon
             menuItems: [
               editYAMLMenuItem(item.kind, resourceLink),
               viewAPIExplorerMenuItem(item.kind, apiExplorerLink),
-              ...(item.kind === 'OAuth' ? oauthMenuItems : []),
+              ...(kindSpecificItems),
             ],
           };
         })

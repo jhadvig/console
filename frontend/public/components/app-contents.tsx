@@ -579,6 +579,14 @@ const AppContents_: React.FC<AppContentsProps> = ({ activePerspective, flags }) 
             }
           />
           <LazyRoute
+            path="/settings/configure-disconnected"
+            loader={() =>
+              import(
+                './cluster-settings/configure-disconnected-form' /* webpackChunkName: "configure-disconnected-form" */
+              ).then((m) => m.ConfigureDisconnectedPage)
+            }
+          />
+          <LazyRoute
             path="/settings/cluster"
             loader={() =>
               import(
