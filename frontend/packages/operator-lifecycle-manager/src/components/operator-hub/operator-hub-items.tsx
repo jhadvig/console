@@ -3,16 +3,8 @@ import * as _ from 'lodash';
 import LazyLoad from 'react-lazyload';
 import { Modal } from 'patternfly-react';
 import { CatalogTile } from 'patternfly-react-extensions';
-import {
-  EmptyState,
-  EmptyStateBody,
-  EmptyStateVariant,
-  Title,
-} from '@patternfly/react-core';
-import {
-  GreenCheckCircleIcon,
-} from '@console/shared';
-
+import { EmptyState, EmptyStateBody, EmptyStateVariant, Title } from '@patternfly/react-core';
+import { GreenCheckCircleIcon } from '@console/shared';
 import { history } from '@console/internal/components/utils/router';
 import { COMMUNITY_PROVIDERS_WARNING_LOCAL_STORAGE_KEY } from '@console/internal/const';
 import { TileViewPage } from '@console/internal/components/utils/tile-view-page';
@@ -38,7 +30,7 @@ const filterByArchAndOS = (items: OperatorHubItem[]): OperatorHubItem[] => {
     // - if the operator has no flags, treat it with the defaults
     // - if it has any flags, it must list all flags (no defaults applied)
     const relevantLabels = _.reduce(
-      _.get(items, 'obj.metadata.labels', []),
+      _.get(item, 'obj.metadata.labels', []),
       (result, value: string, label: string): { arch: string[]; os: string[] } => {
         if (label.includes(archBaseLabel) && value === 'supported') {
           result.arch.push(label);
