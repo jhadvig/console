@@ -4,7 +4,7 @@ import { match, Link } from 'react-router-dom';
 import { sortable } from '@patternfly/react-table';
 import * as classNames from 'classnames';
 import { Alert, Button } from '@patternfly/react-core';
-import { InProgressIcon, PencilAltIcon } from '@patternfly/react-icons';
+import { InProgressIcon, PencilAltIcon, UnknownIcon } from '@patternfly/react-icons';
 import { Conditions } from '@console/internal/components/conditions';
 import {
   DetailsPage,
@@ -206,8 +206,8 @@ export const SubscriptionStatus: React.FC<{ subscription: SubscriptionKind }> = 
       );
     default:
       return (
-        <span className={_.isEmpty(subscription.status.state) ? 'text-muted' : ''}>
-          {subscription.status.state || 'Unknown failure'}
+        <span>
+          <UnknownIcon /> {subscription.status.state || 'Unknown'}
         </span>
       );
   }
