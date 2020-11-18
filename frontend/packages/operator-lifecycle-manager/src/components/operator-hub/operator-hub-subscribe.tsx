@@ -243,6 +243,9 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     const ns: K8sResourceCommon = {
       metadata: {
         name: selectedTargetNamespace,
+        annotations: {
+          'openshift.io/node-selector': '',
+        },
         labels:
           operatorRequestsMonitoring && enableMonitoring
             ? {
