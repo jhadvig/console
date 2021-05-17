@@ -29,6 +29,7 @@ func (o *OperatorListOperands) Run(ctx context.Context, packageName string) (*un
 	opKey := types.NamespacedName{
 		Name: fmt.Sprintf("%s.%s", packageName, o.config.Namespace),
 	}
+
 	result, err := o.listAll(ctx, opKey)
 	if err != nil {
 		return nil, err
@@ -40,6 +41,7 @@ func (o *OperatorListOperands) Run(ctx context.Context, packageName string) (*un
 // FindOperator finds an operator object on-cluster provided a package and namespace.
 func (o *OperatorListOperands) findOperator(ctx context.Context, key types.NamespacedName) (*v1.Operator, error) {
 	operator := v1.Operator{}
+
 	err := o.config.Client.Get(ctx, key, &operator)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
