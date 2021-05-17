@@ -55,6 +55,7 @@ const (
 	devfileEndpoint                  = "/api/devfile/"
 	devfileSamplesEndpoint           = "/api/devfile/samples/"
 	pluginsEndpoint                  = "/api/plugins/"
+	operandsListEndpoint             = "/api/operands/"
 
 	sha256Prefix = "sha256~"
 )
@@ -405,6 +406,14 @@ func (s *Server) HTTPHandler() http.Handler {
 			})),
 		)
 	}
+
+	// List operator operands endpoint
+	handle(operandsListEndpoint, http.StripPrefix(
+		proxy.SingleJoiningSlash(s.BaseURL.Path, operandsListEndpoint),
+		authHandler(func(w http.ResponseWriter, r *http.Request) {
+			operandsListHandler(w, r)
+		}),
+	))
 
 	handle("/api/console/monitoring-dashboard-config", authHandler(s.handleMonitoringDashboardConfigmaps))
 	handle("/api/console/knative-event-sources", authHandler(s.handleKnativeEventSourceCRDs))
