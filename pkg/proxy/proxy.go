@@ -99,6 +99,7 @@ func CopyRequestHeaders(originalRequest, newRequest *http.Request) {
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
 	// Block scripts from running in proxied content for browsers that support Content-Security-Policy.
 	w.Header().Set("Content-Security-Policy", "sandbox;")
 	// Add `X-Content-Security-Policy` for IE11 and older browsers.
@@ -127,7 +128,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Host = p.config.Endpoint.Host
 	r.URL.Host = p.config.Endpoint.Host
 	r.URL.Scheme = p.config.Endpoint.Scheme
-
 	if !isWebsocket {
 		p.reverseProxy.ServeHTTP(w, r)
 		return

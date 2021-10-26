@@ -53,6 +53,8 @@ const (
 
 	// Well-known location of the GitOps service. This is only accessible in-cluster
 	openshiftGitOpsHost = "cluster.openshift-gitops.svc:8080"
+
+	clusterManagemenetEndpoint = "https://api.openshift.com/"
 )
 
 func main() {
@@ -446,6 +448,19 @@ func main() {
 		Transport: &http.Transport{
 			TLSClientConfig: srv.K8sProxyConfig.TLSClientConfig,
 		},
+	}
+
+	clusterManagemenetEndpoint, err := url.Parse(clusterManagemenetEndpoint)
+	if err != nil {
+		klog.Fatalf("failed to parse %q", clusterManagemenetEndpoint)
+		panic(err)
+	}
+	srv.ClusterManagementProxyConfig = &proxy.Config{
+		TLSClientConfig: oscrypto.SecureTLSConfig(&tls.Config{
+			InsecureSkipVerify: *fK8sModeOffClusterSkipVerifyTLS,
+		}),
+		HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
+		Endpoint:        clusterManagemenetEndpoint,
 	}
 
 	switch *fUserAuth {
