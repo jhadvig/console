@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,21 +10,48 @@ import (
 	"path"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 
+	consoleclientv1 "github.com/openshift/client-go/console/clientset/versioned/typed/console/v1alpha1"
 	"github.com/openshift/console/pkg/proxy"
 	"github.com/openshift/console/pkg/serverutils"
 )
 
+const pluginLocalesAnnotation = "console.openshift.io/plugin-locales"
+
 type PluginsHandler struct {
 	Client             *http.Client
+	PluginsWithLocales []string
 	PluginsEndpointMap map[string]string
 	PublicDir          string
 }
 
-func NewPluginsHandler(client *http.Client, pluginsEndpointMap map[string]string, publicDir string) *PluginsHandler {
+func PluginsClient(apiEndpoint string, transport http.RoundTripper, serviceAccountToken string) (*consoleclientv1.ConsoleV1alpha1Client, error) {
+	config := &rest.Config{
+		Host:        apiEndpoint,
+		BearerToken: serviceAccountToken,
+		Transport:   transport,
+	}
+	return consoleclientv1.NewForConfig(config)
+}
+
+func NewPluginsHandler(client *http.Client, pluginsClient *consoleclientv1.ConsoleV1alpha1Client, pluginsEndpointMap map[string]string, publicDir string) *PluginsHandler {
+	pluginsWithLocales := []string{}
+	for pluginsName := range pluginsEndpointMap {
+		plugin, err := pluginsClient.ConsolePlugins().Get(context.TODO(), pluginsName, metav1.GetOptions{})
+		if err != nil {
+			panic(err)
+		}
+		if value, ok := plugin.Annotations[pluginLocalesAnnotation]; ok && value == "true" {
+			pluginsWithLocales = append(pluginsWithLocales, pluginsName)
+		}
+	}
+
 	return &PluginsHandler{
 		Client:             client,
+		PluginsWithLocales: pluginsWithLocales,
 		PluginsEndpointMap: pluginsEndpointMap,
 		PublicDir:          publicDir,
 	}
@@ -55,6 +83,11 @@ func (p *PluginsHandler) HandleI18nResources(w http.ResponseWriter, r *http.Requ
 	// In case of dynamic-plugin we need to trim the "plugin__" prefix, since we are using the ConsolePlugin CR's name
 	// as key when looking for the plugin's Service endpoint.
 	pluginName := strings.TrimPrefix(namespace, "plugin__")
+
+	if !contains(p.PluginsWithLocales, pluginName) {
+		serverutils.SendResponse(w, http.StatusBadRequest, serverutils.ApiError{Err: fmt.Sprintf("Plugin %q does not contain localization files", pluginName)})
+		return
+	}
 
 	pluginServiceRequestURL, err := p.getServiceRequestURL(pluginName)
 	if err != nil {
@@ -174,4 +207,13 @@ func parsePluginNameAndAssetPath(urlPath string) (string, string) {
 		return nameAndAssetPath[0], ""
 	}
 	return nameAndAssetPath[0], nameAndAssetPath[1]
+}
+
+func contains(arr []string, str string) bool {
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
+	}
+	return false
 }

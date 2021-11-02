@@ -446,6 +446,8 @@ func (s *Server) HTTPHandler() http.Handler {
 
 	helmHandlers := helmhandlerspkg.New(s.K8sProxyConfig.Endpoint.String(), s.K8sClient.Transport, s)
 
+	pluginsClient, err := plugins.PluginsClient(s.K8sProxyConfig.Endpoint.String(), s.K8sClient.Transport, s.ServiceAccountToken)
+
 	pluginsHandler := plugins.NewPluginsHandler(
 		&http.Client{
 			// 120 seconds matches the webpack require timeout.
@@ -453,6 +455,7 @@ func (s *Server) HTTPHandler() http.Handler {
 			Timeout:   120 * time.Second,
 			Transport: &http.Transport{TLSClientConfig: s.PluginsProxyTLSConfig},
 		},
+		// pluginsClient,
 		s.EnabledConsolePlugins,
 		s.PublicDir,
 	)
