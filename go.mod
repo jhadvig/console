@@ -14,7 +14,7 @@ require (
 	github.com/graph-gophers/graphql-go v0.0.0-20200309224638-dae41bde9ef9
 	github.com/openshift/api v0.0.0-20220803132145-8e34324aa580
 	github.com/openshift/library-go v0.0.0-20200424095618-2aeb4725dadf
-	github.com/operator-framework/kubectl-operator v0.3.0
+	github.com/operator-framework/kubectl-operator v0.4.0
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/common v0.37.0
 	github.com/rawagner/graphql-transport-ws v0.0.0-20200817140314-dcfbf0388067
