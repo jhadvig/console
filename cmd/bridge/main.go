@@ -8,8 +8,8 @@ import (
 	"flag"
 	"fmt"
 	"runtime"
+	"time"
 
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -360,11 +360,6 @@ func main() {
 	}
 
 	var (
-		// Hold on to raw certificates so we can render them in kubeconfig files.
-		k8sCertPEM []byte
-	)
-
-	var (
 		k8sAuthServiceAccountBearerToken string
 	)
 
@@ -382,20 +377,8 @@ func main() {
 	case "in-cluster":
 		k8sEndpoint = &url.URL{Scheme: "https", Host: "kubernetes.default.svc"}
 
-		var err error
-		k8sCertPEM, err = ioutil.ReadFile(k8sInClusterCA)
-		if err != nil {
-			klog.Fatalf("Error inferring Kubernetes config from environment: %v", err)
-		}
-		rootCAs := x509.NewCertPool()
-		if !rootCAs.AppendCertsFromPEM(k8sCertPEM) {
-			klog.Fatal("No CA found for the API server")
-		}
-		tlsConfig := oscrypto.SecureTLSConfig(&tls.Config{
-			RootCAs: rootCAs,
-		})
-
-		bearerToken, err := ioutil.ReadFile(k8sInClusterBearerToken)
+		tlsConfig, err := getServiceAccountTLSConfig(k8sInClusterCA)
+		bearerToken, err := getServiceAccountToken(k8sInClusterBearerToken)
 		if err != nil {
 			klog.Fatalf("failed to read bearer token: %v", err)
 		}
@@ -410,7 +393,7 @@ func main() {
 
 		// If running in an OpenShift cluster, set up a proxy to the prometheus-k8s service running in the openshift-monitoring namespace.
 		if *fServiceCAFile != "" {
-			serviceCertPEM, err := ioutil.ReadFile(*fServiceCAFile)
+			serviceCertPEM, err := os.ReadFile(*fServiceCAFile)
 			if err != nil {
 				klog.Fatalf("failed to read service-ca.crt file: %v", err)
 			}
@@ -582,6 +565,8 @@ func main() {
 		Endpoint:        clusterManagementURL,
 	}
 
+	oidcClientConfig := &auth.Config{}
+
 	switch *fUserAuth {
 	case "oidc", "openshift":
 		bridge.ValidateFlagNotEmpty("base-address", *fBaseAddress)
@@ -627,7 +612,7 @@ func main() {
 		}
 
 		if *fUserAuthOIDCClientSecretFile != "" {
-			buf, err := ioutil.ReadFile(*fUserAuthOIDCClientSecretFile)
+			buf, err := os.ReadFile(*fUserAuthOIDCClientSecretFile)
 			if err != nil {
 				klog.Fatalf("Failed to read client secret file: %v", err)
 			}
@@ -635,7 +620,7 @@ func main() {
 		}
 
 		// Config for logging into console.
-		oidcClientConfig := &auth.Config{
+		oidcClientConfig = &auth.Config{
 			AuthSource:   authSource,
 			IssuerURL:    userAuthOIDCIssuerURL.String(),
 			IssuerCA:     *fUserAuthOIDCCAFile,
@@ -646,6 +631,8 @@ func main() {
 
 			// Use the k8s CA file for OpenShift OAuth metadata discovery.
 			// This might be different than IssuerCA.
+			// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			// NETREBA CHANGES
 			K8sCA: caCertFilePath,
 
 			ErrorURL:   authLoginErrorEndpoint,
@@ -683,6 +670,7 @@ func main() {
 		if srv.Authers[serverutils.LocalClusterName], err = auth.NewAuthenticator(context.Background(), oidcClientConfig); err != nil {
 			klog.Fatalf("Error initializing authenticator: %v", err)
 		}
+		updateClientConfigAuther(srv, oidcClientConfig)
 
 		// TODO remove multicluster
 		if len(managedClusterConfigs) > 0 {
@@ -840,6 +828,7 @@ func main() {
 			klog.Fatal(http.ListenAndServe(redirectPort, redirectServer))
 		}()
 	}
+	go updateServiceAccountPeriodically(srv, oidcClientConfig)
 
 	klog.Infof("Binding to %s...", httpsrv.Addr)
 	if listenURL.Scheme == "https" {
@@ -848,5 +837,56 @@ func main() {
 	} else {
 		klog.Info("not using TLS")
 		klog.Fatal(httpsrv.ListenAndServe())
+	}
+}
+
+func updateServiceAccountPeriodically(srv *server.Server, oidcClientConfig *auth.Config) {
+	for {
+		time.Sleep(1 * time.Minute)
+		klog.Info("Updating service account token certificate and token...")
+
+		token, err := getServiceAccountToken(k8sInClusterBearerToken)
+		if err != nil {
+			klog.Fatalf("Error updating service account token: %v", err)
+		}
+		tlsConfig, err := getServiceAccountTLSConfig(k8sInClusterCA)
+		if err != nil {
+			klog.Fatalf("Error updating service account certificate: %v", err)
+		}
+
+		srv.ServiceAccountToken = token
+		srv.K8sProxyConfig.TLSClientConfig = tlsConfig
+
+		klog.Info("Updating authenticator...")
+		updateClientConfigAuther(srv, oidcClientConfig)
+	}
+}
+
+func getServiceAccountToken(tokenPath string) (string, error) {
+	token, err := os.ReadFile(tokenPath)
+	if err != nil {
+		return "", fmt.Errorf("error reading bearer token file: %v", err)
+	}
+	return string(token), nil
+}
+
+func getServiceAccountTLSConfig(certPath string) (*tls.Config, error) {
+	k8sCertPEM, err := os.ReadFile(certPath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading service account cartificate file: %v", err)
+	}
+	rootCAs := x509.NewCertPool()
+	if !rootCAs.AppendCertsFromPEM(k8sCertPEM) {
+		return nil, fmt.Errorf("no CA found for the API server")
+	}
+	return oscrypto.SecureTLSConfig(&tls.Config{
+		RootCAs: rootCAs,
+	}), nil
+}
+
+func updateClientConfigAuther(srv *server.Server, oidcClientConfig *auth.Config) {
+	var err error
+	if srv.Authers[serverutils.LocalClusterName], err = auth.NewAuthenticator(context.Background(), oidcClientConfig); err != nil {
+		klog.Fatalf("Error updating authenticator: %v", err)
 	}
 }
