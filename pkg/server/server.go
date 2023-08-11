@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -37,6 +38,8 @@ import (
 	"github.com/openshift/console/pkg/usage"
 	"github.com/openshift/console/pkg/usersettings"
 	"github.com/openshift/console/pkg/version"
+
+	oscrypto "github.com/openshift/library-go/pkg/crypto"
 
 	graphql "github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
@@ -166,6 +169,7 @@ type Server struct {
 	InactivityTimeout                   int
 	K8sClient                           *http.Client
 	K8sMode                             string
+	K8sAuthType                         string
 	K8sProxyConfig                      *proxy.Config
 	KnativeChannelCRDLister             ResourceLister
 	KnativeEventSourceCRDLister         ResourceLister
@@ -987,4 +991,121 @@ func tokenToObjectName(token string) string {
 	name := strings.TrimPrefix(token, sha256Prefix)
 	h := sha256.Sum256([]byte(name))
 	return sha256Prefix + base64.RawURLEncoding.EncodeToString(h[0:])
+}
+
+func (s *Server) UpdateServiceAccountCertAndTokenPeriodically(oidcClientConfig *auth.Config, caCertFilePath, k8sInClusterBearerToken string) {
+	for {
+		time.Sleep(1 * time.Minute)
+		klog.Info("Updating service account token certificate and token...")
+
+		token, err := GetInClusterToken(k8sInClusterBearerToken)
+		if err != nil {
+			klog.Fatalf("Error updating service account token: %v", err)
+		}
+		tlsConfig, err := GetInClusterTLSConfig(caCertFilePath)
+		if err != nil {
+			klog.Fatalf("Error updating service account certificate: %v", err)
+		}
+
+		s.ServiceAccountToken = token
+		s.K8sProxyConfig.TLSClientConfig = tlsConfig
+		s.K8sClient = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tlsConfig,
+			},
+		}
+
+		switch s.K8sAuthType {
+		case "service-account":
+			s.StaticUser = &auth.User{
+				Token: token,
+			}
+		case "oidc", "openshift":
+			s.ServiceAccountToken = token
+		}
+
+		s.SetListers()
+
+		klog.Info("Updating authenticator...")
+		s.UpdateClientConfigAuther(oidcClientConfig)
+	}
+}
+
+func (s *Server) SetListers() {
+	s.MonitoringDashboardConfigMapLister = s.GetResourceLister(
+		"/api/v1/namespaces/openshift-config-managed/configmaps",
+		"console.openshift.io/dashboard=true",
+		nil,
+	)
+
+	s.KnativeEventSourceCRDLister = s.GetResourceLister(
+		"/apis/apiextensions.k8s.io/v1/customresourcedefinitions",
+		"duck.knative.dev/source=true",
+		knative.EventSourceFilter,
+	)
+
+	s.KnativeChannelCRDLister = s.GetResourceLister(
+		"/apis/apiextensions.k8s.io/v1/customresourcedefinitions",
+		"duck.knative.dev/addressable=true,messaging.knative.dev/subscribable=true",
+		knative.ChannelFilter,
+	)
+}
+
+func (s *Server) GetResourceLister(
+	path,
+	labelSelector string,
+	respFilter FilterFunction,
+) ResourceLister {
+	httpClientTransport := &http.Transport{
+		TLSClientConfig: s.K8sProxyConfig.TLSClientConfig,
+	}
+	// Setting the proxy for all the listeners
+	if s.K8sMode == "off-cluster" {
+		httpClientTransport.Proxy = http.ProxyFromEnvironment
+	}
+
+	return NewResourceLister(
+		s.ServiceAccountToken,
+		&url.URL{
+			Scheme: s.K8sProxyConfig.Endpoint.Scheme,
+			Host:   s.K8sProxyConfig.Endpoint.Host,
+			Path:   s.K8sProxyConfig.Endpoint.Path + path,
+			RawQuery: url.Values{
+				"labelSelector": {labelSelector},
+			}.Encode(),
+		},
+		&http.Client{
+			Transport: httpClientTransport,
+		},
+		respFilter,
+	)
+}
+
+func (s *Server) UpdateClientConfigAuther(oidcClientConfig *auth.Config) {
+	var err error
+	if s.Authers[serverutils.LocalClusterName], err = auth.NewAuthenticator(context.Background(), oidcClientConfig); err != nil {
+		klog.Fatalf("Error updating authenticator: %v", err)
+	}
+}
+
+func GetInClusterToken(tokenPath string) (string, error) {
+	token, err := os.ReadFile(tokenPath)
+	if err != nil {
+		return "", fmt.Errorf("error reading bearer token file: %v", err)
+	}
+	return string(token), nil
+}
+
+func GetInClusterTLSConfig(certPath string) (*tls.Config, error) {
+	k8sCertPEM, err := os.ReadFile(certPath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading service account cartificate file: %v", err)
+	}
+	rootCAs := x509.NewCertPool()
+	if !rootCAs.AppendCertsFromPEM(k8sCertPEM) {
+		return nil, fmt.Errorf("no CA found for the API server")
+	}
+	return oscrypto.SecureTLSConfig(&tls.Config{
+		RootCAs: rootCAs,
+	}), nil
 }
