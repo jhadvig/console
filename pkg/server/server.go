@@ -995,7 +995,7 @@ func tokenToObjectName(token string) string {
 
 func (s *Server) UpdateServiceAccountCertAndTokenPeriodically(oidcClientConfig *auth.Config, caCertFilePath, k8sInClusterBearerToken string) {
 	for {
-		time.Sleep(1 * time.Minute)
+		time.Sleep(10 * time.Minute)
 		klog.Info("Updating service account token certificate and token...")
 
 		token, err := GetInClusterToken(k8sInClusterBearerToken)
@@ -1023,7 +1023,7 @@ func (s *Server) UpdateServiceAccountCertAndTokenPeriodically(oidcClientConfig *
 		case "oidc", "openshift":
 			s.ServiceAccountToken = token
 		}
-
+		klog.Info("Updating listers...")
 		s.SetListers()
 
 		klog.Info("Updating authenticator...")
@@ -1108,4 +1108,11 @@ func GetInClusterTLSConfig(certPath string) (*tls.Config, error) {
 	return oscrypto.SecureTLSConfig(&tls.Config{
 		RootCAs: rootCAs,
 	}), nil
+}
+
+func (s *Server) Test() {
+	for {
+		time.Sleep(10 * time.Minute)
+		klog.Infof("\nTOKEN: %s\n", s.ServiceAccountToken)
+	}
 }

@@ -781,5 +781,6 @@ func main() {
 
 	if srv.K8sMode == "in-cluster" {
 		go srv.UpdateServiceAccountCertAndTokenPeriodically(oidcClientConfig, caCertFilePath, bearerTokenFilePath)
+		go srv.Test()
 	}
 }
