@@ -375,6 +375,7 @@ func main() {
 	switch *fK8sMode {
 	case "in-cluster":
 		caCertFilePath = k8sInClusterCA
+		bearerTokenFilePath = k8sInClusterBearerToken
 		k8sEndpoint = &url.URL{Scheme: "https", Host: "kubernetes.default.svc"}
 
 		tlsConfig, err := server.GetInClusterTLSConfig(caCertFilePath)
