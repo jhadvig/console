@@ -21,6 +21,7 @@ import (
 	"github.com/coreos/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"k8s.io/client-go/transport"
 	"k8s.io/klog"
 
 	"github.com/openshift/console/pkg/auth"
@@ -993,27 +994,25 @@ func tokenToObjectName(token string) string {
 	return sha256Prefix + base64.RawURLEncoding.EncodeToString(h[0:])
 }
 
-func (s *Server) UpdateServiceAccountCertAndTokenPeriodically(oidcClientConfig *auth.Config, caCertFilePath, k8sInClusterBearerToken string) {
+func (s *Server) UpdateServiceAccountCertAndTokenPeriodically(caCertFilePath, bearerTokenFilePath string) {
+	klog.Info("\nUpdateServiceAccountCertAndTokenPeriodically\n")
 	for {
-		time.Sleep(10 * time.Minute)
-		klog.Info("Updating service account token certificate and token...")
+		// Update the service account token and certificate every 10 minutes.
+		time.Sleep(1 * time.Minute)
+		klog.Info("Updating service account token...")
 
-		token, err := GetInClusterToken(k8sInClusterBearerToken)
+		token, err := GetInClusterToken(bearerTokenFilePath)
 		if err != nil {
 			klog.Fatalf("Error updating service account token: %v", err)
 		}
+
 		tlsConfig, err := GetInClusterTLSConfig(caCertFilePath)
 		if err != nil {
 			klog.Fatalf("Error updating service account certificate: %v", err)
 		}
 
-		s.ServiceAccountToken = token
 		s.K8sProxyConfig.TLSClientConfig = tlsConfig
-		s.K8sClient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsConfig,
-			},
-		}
+		s.K8sClient = GetK8sClient(tlsConfig, bearerTokenFilePath)
 
 		switch s.K8sAuthType {
 		case "service-account":
@@ -1023,11 +1022,9 @@ func (s *Server) UpdateServiceAccountCertAndTokenPeriodically(oidcClientConfig *
 		case "oidc", "openshift":
 			s.ServiceAccountToken = token
 		}
+
 		klog.Info("Updating listers...")
 		s.SetListers()
-
-		klog.Info("Updating authenticator...")
-		s.UpdateClientConfigAuther(oidcClientConfig)
 	}
 }
 
@@ -1056,9 +1053,7 @@ func (s *Server) GetResourceLister(
 	labelSelector string,
 	respFilter FilterFunction,
 ) ResourceLister {
-	httpClientTransport := &http.Transport{
-		TLSClientConfig: s.K8sProxyConfig.TLSClientConfig,
-	}
+	httpClientTransport := s.K8sClient.Transport.(*http.Transport).Clone()
 	// Setting the proxy for all the listeners
 	if s.K8sMode == "off-cluster" {
 		httpClientTransport.Proxy = http.ProxyFromEnvironment
@@ -1081,13 +1076,6 @@ func (s *Server) GetResourceLister(
 	)
 }
 
-func (s *Server) UpdateClientConfigAuther(oidcClientConfig *auth.Config) {
-	var err error
-	if s.Authers[serverutils.LocalClusterName], err = auth.NewAuthenticator(context.Background(), oidcClientConfig); err != nil {
-		klog.Fatalf("Error updating authenticator: %v", err)
-	}
-}
-
 func GetInClusterToken(tokenPath string) (string, error) {
 	token, err := os.ReadFile(tokenPath)
 	if err != nil {
@@ -1108,6 +1096,19 @@ func GetInClusterTLSConfig(certPath string) (*tls.Config, error) {
 	return oscrypto.SecureTLSConfig(&tls.Config{
 		RootCAs: rootCAs,
 	}), nil
+}
+
+func GetK8sClient(tlsConfig *tls.Config, bearerTokenFilePath string) *http.Client {
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+	tripper, err := transport.NewBearerAuthWithRefreshRoundTripper("", bearerTokenFilePath, tr)
+	if err != nil {
+		klog.Fatal("failed set round tripper with bearer token refresh")
+	}
+	return &http.Client{
+		Transport: tripper,
+	}
 }
 
 func (s *Server) Test() {

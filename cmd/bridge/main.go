@@ -368,8 +368,8 @@ func main() {
 	}
 
 	caCertFilePath := *fCAFile
-	bearerTokenFilePath := *fK8sAuthBearerToken
 
+	var bearerTokenFilePath string
 	var k8sEndpoint *url.URL
 
 	switch *fK8sMode {
@@ -379,6 +379,9 @@ func main() {
 		k8sEndpoint = &url.URL{Scheme: "https", Host: "kubernetes.default.svc"}
 
 		tlsConfig, err := server.GetInClusterTLSConfig(caCertFilePath)
+		if err != nil {
+			klog.Fatalf("failed to read CA cert: %v", err)
+		}
 		bearerToken, err := server.GetInClusterToken(bearerTokenFilePath)
 		if err != nil {
 			klog.Fatalf("failed to read bearer token: %v", err)
@@ -550,11 +553,7 @@ func main() {
 		apiServerEndpoint = srv.K8sProxyConfig.Endpoint.String()
 	}
 	srv.KubeAPIServerURL = apiServerEndpoint
-	srv.K8sClient = &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: srv.K8sProxyConfig.TLSClientConfig,
-		},
-	}
+	srv.K8sClient = server.GetK8sClient(srv.K8sProxyConfig.TLSClientConfig, bearerTokenFilePath)
 
 	clusterManagementURL, err := url.Parse(clusterManagementURL)
 	if err != nil {
@@ -771,6 +770,11 @@ func main() {
 		}()
 	}
 
+	if srv.K8sMode == "in-cluster" {
+		go srv.UpdateServiceAccountCertAndTokenPeriodically(caCertFilePath, bearerTokenFilePath)
+		go srv.Test()
+	}
+
 	klog.Infof("Binding to %s...", httpsrv.Addr)
 	if listenURL.Scheme == "https" {
 		klog.Info("using TLS")
@@ -778,10 +782,5 @@ func main() {
 	} else {
 		klog.Info("not using TLS")
 		klog.Fatal(httpsrv.ListenAndServe())
-	}
-
-	if srv.K8sMode == "in-cluster" {
-		go srv.UpdateServiceAccountCertAndTokenPeriodically(oidcClientConfig, caCertFilePath, bearerTokenFilePath)
-		go srv.Test()
 	}
 }
