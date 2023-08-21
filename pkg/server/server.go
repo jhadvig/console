@@ -16,11 +16,14 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
 	"k8s.io/klog"
 
@@ -168,41 +171,49 @@ type Server struct {
 	HubConsoleURL                       *url.URL // TODO remove multicluster
 	I18nNamespaces                      []string
 	InactivityTimeout                   int
-	K8sClient                           *http.Client
-	K8sMode                             string
-	K8sAuthType                         string
-	K8sProxyConfig                      *proxy.Config
-	KnativeChannelCRDLister             ResourceLister
-	KnativeEventSourceCRDLister         ResourceLister
-	KubeAPIServerURL                    string
-	KubectlClientID                     string
-	KubeVersion                         string
-	LoadTestFactor                      int
-	LogoutRedirect                      *url.URL
-	ManagedClusterProxyConfig           *proxy.Config // TODO remove multicluster
-	MonitoringDashboardConfigMapLister  ResourceLister
-	NodeArchitectures                   []string
-	NodeOperatingSystems                []string
-	Perspectives                        string
-	PluginProxy                         string
-	PluginsProxyTLSConfig               *tls.Config
-	ProjectAccessClusterRoles           string
-	PrometheusPublicURL                 *url.URL
-	PublicDir                           string
-	QuickStarts                         string
-	ReleaseVersion                      string
-	ServiceAccountToken                 string
-	ServiceClient                       *http.Client
-	StaticUser                          *auth.User
-	StatuspageID                        string
-	TectonicVersion                     string
-	Telemetry                           serverconfig.MultiKeyValue
-	TerminalProxyTLSConfig              *tls.Config
-	ThanosProxyConfig                   *proxy.Config
-	ThanosPublicURL                     *url.URL
-	ThanosTenancyProxyConfig            *proxy.Config
-	ThanosTenancyProxyForRulesConfig    *proxy.Config
-	UserSettingsLocation                string
+	// K8sClient                           func() (*http.Client, error)
+
+	K8sMode                            string
+	K8sAuthType                        string
+	K8sProxyConfig                     *proxy.Config
+	KnativeChannelCRDLister            ResourceLister
+	KnativeEventSourceCRDLister        ResourceLister
+	KubeAPIServerURL                   string
+	KubectlClientID                    string
+	KubeVersion                        string
+	LoadTestFactor                     int
+	LogoutRedirect                     *url.URL
+	ManagedClusterProxyConfig          *proxy.Config // TODO remove multicluster
+	MonitoringDashboardConfigMapLister ResourceLister
+	NodeArchitectures                  []string
+	NodeOperatingSystems               []string
+	Perspectives                       string
+	PluginProxy                        string
+	PluginsProxyTLSConfig              *tls.Config
+	ProjectAccessClusterRoles          string
+	PrometheusPublicURL                *url.URL
+	PublicDir                          string
+	QuickStarts                        string
+	ReleaseVersion                     string
+
+	ServiceClient                    *http.Client
+	StaticUser                       *auth.User
+	StatuspageID                     string
+	TectonicVersion                  string
+	Telemetry                        serverconfig.MultiKeyValue
+	TerminalProxyTLSConfig           *tls.Config
+	ThanosProxyConfig                *proxy.Config
+	ThanosPublicURL                  *url.URL
+	ThanosTenancyProxyConfig         *proxy.Config
+	ThanosTenancyProxyForRulesConfig *proxy.Config
+	UserSettingsLocation             string
+
+	// httpClientCache stores httpClient objects so that new client does not have to
+	// be created on each request just to prevent CAs content changed
+	// key is bytes of the hashed metadata of the files for CAs the client was
+	// created with
+	// NOTE: the entries of the map are currently not being cleaned up
+	httpClientCache sync.Map
 }
 
 // TODO remove multicluster
@@ -537,7 +548,7 @@ func (s *Server) HTTPHandler() http.Handler {
 	// List operator operands endpoint
 	operandsListHandler := &OperandsListHandler{
 		APIServerURL: s.KubeAPIServerURL,
-		Client:       s.K8sClient,
+		GetK8sClient: s.GetK8sClient,
 	}
 
 	handle(operandsListEndpoint, http.StripPrefix(
@@ -566,11 +577,14 @@ func (s *Server) HTTPHandler() http.Handler {
 		})),
 	)
 
+	serviceAccountClusterConfig, err := rest.InClusterConfig()
+	serviceAccountClient, err := kubernetes.NewForConfig(serviceAccountClusterConfig)
+
 	// User settings
 	userSettingHandler := usersettings.UserSettingsHandler{
-		Client:              s.K8sClient,
-		Endpoint:            s.K8sProxyConfig.Endpoint.String(),
-		ServiceAccountToken: s.ServiceAccountToken,
+		GetUserClient:        s.GetK8sClient,
+		Endpoint:             s.K8sProxyConfig.Endpoint.String(),
+		ServiceAccountClient: serviceAccountClient,
 	}
 	handle("/api/console/user-settings", authHandlerWithUser(userSettingHandler.HandleUserSettings))
 
@@ -677,13 +691,11 @@ func (s *Server) HTTPHandler() http.Handler {
 	serverconfigMetrics.MonitorPlugins(
 		s.K8sClient,
 		s.K8sProxyConfig.Endpoint.String(),
-		s.ServiceAccountToken,
 	)
 	usageMetrics := usage.NewMetrics()
 	usageMetrics.MonitorUsers(
 		s.K8sClient,
 		s.K8sProxyConfig.Endpoint.String(),
-		s.ServiceAccountToken,
 	)
 	prometheus.MustRegister(s.AuthMetrics.GetCollectors()...) // TODO remove multicluster
 	prometheus.MustRegister(serverconfigMetrics.GetCollectors()...)
@@ -1012,7 +1024,6 @@ func (s *Server) UpdateServiceAccountCertAndTokenPeriodically(caCertFilePath, be
 		}
 
 		s.K8sProxyConfig.TLSClientConfig = tlsConfig
-		s.K8sClient = GetK8sClient(tlsConfig, bearerTokenFilePath)
 
 		switch s.K8sAuthType {
 		case "service-account":
@@ -1053,7 +1064,7 @@ func (s *Server) GetResourceLister(
 	labelSelector string,
 	respFilter FilterFunction,
 ) ResourceLister {
-	httpClientTransport := s.K8sClient.Transport.(*http.Transport).Clone()
+	httpClientTransport := s.GetK8sClient().Transport.(*http.Transport).Clone()
 	// Setting the proxy for all the listeners
 	if s.K8sMode == "off-cluster" {
 		httpClientTransport.Proxy = http.ProxyFromEnvironment
@@ -1098,7 +1109,7 @@ func GetInClusterTLSConfig(certPath string) (*tls.Config, error) {
 	}), nil
 }
 
-func GetK8sClient(tlsConfig *tls.Config, bearerTokenFilePath string) *http.Client {
+func GetK8sClient2(tlsConfig *tls.Config, bearerTokenFilePath string) *http.Client {
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 	}
@@ -1116,4 +1127,37 @@ func (s *Server) Test() {
 		time.Sleep(10 * time.Minute)
 		klog.Infof("\nTOKEN: %s\n", s.ServiceAccountToken)
 	}
+}
+
+func (s *Server) GetK8sClient() (*http.Client, error) {
+	capaths := []string{"/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"}
+	// try to retrieve a cached client
+	metadataHash, err := util.GetFilesMetadataHash(capaths)
+	if err != nil {
+		return nil, err
+	}
+
+	cachedKey := metadataHash
+
+	if httpClient, ok := s.httpClientCache.Load(cachedKey); ok {
+		return httpClient.(*http.Client), nil
+	}
+
+	// client not in cache, create new
+	pool, err := util.GetCertPool(capaths, system_roots)
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := &http.Client{
+		Jar: http.DefaultClient.Jar,
+		Transport: &http.Transport{
+			Proxy:           http.ProxyFromEnvironment,
+			TLSClientConfig: oscrypto.SecureTLSConfig(&tls.Config{RootCAs: pool}),
+		},
+		Timeout: 1 * time.Minute,
+	}
+	s.httpClientCache.Store(cachedKey, httpClient)
+
+	return httpClient, nil
 }

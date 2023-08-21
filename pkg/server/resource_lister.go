@@ -8,6 +8,7 @@ import (
 
 	"github.com/openshift/console/pkg/serverutils"
 
+	"k8s.io/client-go/transport"
 	"k8s.io/klog"
 )
 
@@ -21,9 +22,8 @@ type FilterFunction func(http.ResponseWriter, *http.Response)
 
 // resourceLister determines the list of resources of a particular kind
 type resourceLister struct {
-	bearerToken    string
 	requestURL     *url.URL
-	client         *http.Client
+	client         http.RoundTripper
 	responseFilter FilterFunction
 }
 
@@ -40,8 +40,7 @@ func (l *resourceLister) HandleResources(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	req.Header.Set("Authorization", "Bearer "+l.bearerToken)
-	resp, err := l.client.Do(req)
+	resp, err := l.client.RoundTrip(req)
 	if err != nil {
 		serverutils.SendResponse(w, http.StatusBadGateway, serverutils.ApiError{Err: fmt.Sprintf("GET request failed: %v", err)})
 		return
@@ -59,11 +58,15 @@ func (l *resourceLister) HandleResources(w http.ResponseWriter, r *http.Request)
 }
 
 // NewResourceLister shall instantiate & return resourceLister instance
-func NewResourceLister(bearerToken string, requestURL *url.URL, client *http.Client, respFilter FilterFunction) ResourceLister {
+func NewResourceLister(BearerTokenFile string, requestURL *url.URL, rt http.RoundTripper, respFilter FilterFunction) ResourceLister {
+	tripper, err := transport.NewBearerAuthWithRefreshRoundTripper("", BearerTokenFile, rt)
+	if err != nil {
+		klog.Errorf("console service account cannot list resource: %s", err)
+		return nil
+	}
 	r := &resourceLister{
-		bearerToken:    bearerToken,
 		requestURL:     requestURL,
-		client:         client,
+		client:         tripper,
 		responseFilter: respFilter,
 	}
 	if r.responseFilter == nil {

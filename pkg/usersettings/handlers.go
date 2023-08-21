@@ -27,19 +27,13 @@ var USER_RESOURCE = schema.GroupVersionResource{
 }
 
 type UserSettingsHandler struct {
-	Client              *http.Client
-	Endpoint            string
-	ServiceAccountToken string
+	GetUserClient        func() (*http.Client, error)
+	ServiceAccountClient *kubernetes.Clientset
+	Endpoint             string
 }
 
 func (h *UserSettingsHandler) HandleUserSettings(user *auth.User, w http.ResponseWriter, r *http.Request) {
 	context := context.TODO()
-
-	serviceAccountClient, err := h.createServiceAccountClient()
-	if err != nil {
-		h.sendErrorResponse("Failed to create service account to handle user setting request: %v", err, w)
-		return
-	}
 
 	userSettingMeta, err := h.getUserSettingMeta(context, user)
 	if err != nil {
@@ -49,21 +43,21 @@ func (h *UserSettingsHandler) HandleUserSettings(user *auth.User, w http.Respons
 
 	switch r.Method {
 	case http.MethodGet:
-		configMap, err := h.getUserSettings(context, serviceAccountClient, userSettingMeta)
+		configMap, err := h.getUserSettings(context, h.ServiceAccountClient, userSettingMeta)
 		if err != nil {
 			h.sendErrorResponse("Failed to get user settings: %v", err, w)
 			return
 		}
 		serverutils.SendResponse(w, http.StatusOK, configMap)
 	case http.MethodPost:
-		configMap, err := h.createUserSettings(context, serviceAccountClient, userSettingMeta)
+		configMap, err := h.createUserSettings(context, h.ServiceAccountClient, userSettingMeta)
 		if err != nil {
 			h.sendErrorResponse("Failed to create user settings: %v", err, w)
 			return
 		}
 		serverutils.SendResponse(w, http.StatusOK, configMap)
 	case http.MethodDelete:
-		err := h.deleteUserSettings(context, serviceAccountClient, userSettingMeta)
+		err := h.deleteUserSettings(context, h.ServiceAccountClient, userSettingMeta)
 		if err != nil {
 			h.sendErrorResponse("Failed to delete user settings: %v", err, w)
 			return
@@ -145,20 +139,15 @@ func (h *UserSettingsHandler) deleteUserSettings(ctx context.Context, client *ku
 	return nil
 }
 
-func (h *UserSettingsHandler) createServiceAccountClient() (*kubernetes.Clientset, error) {
-	config := &rest.Config{
-		Host:        h.Endpoint,
-		BearerToken: h.ServiceAccountToken,
-		Transport:   h.Client.Transport,
-	}
-	return kubernetes.NewForConfig(config)
-}
-
 func (h *UserSettingsHandler) createUserProxyClient(user *auth.User) (dynamic.Interface, error) {
+	httpClient, err := h.GetUserClient()
+	if err != nil {
+		return nil, err
+	}
 	config := &rest.Config{
 		Host:        h.Endpoint,
 		BearerToken: user.Token,
-		Transport:   h.Client.Transport,
+		Transport:   httpClient.Transport,
 	}
 	return dynamic.NewForConfig(config)
 }

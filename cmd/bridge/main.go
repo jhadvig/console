@@ -553,7 +553,8 @@ func main() {
 		apiServerEndpoint = srv.K8sProxyConfig.Endpoint.String()
 	}
 	srv.KubeAPIServerURL = apiServerEndpoint
-	srv.K8sClient = server.GetK8sClient(srv.K8sProxyConfig.TLSClientConfig, bearerTokenFilePath)
+	// srv.K8sClient = server.GetK8sClient(srv.K8sProxyConfig.TLSClientConfig, bearerTokenFilePath)
+	k8sClient := srv.GetK8sClient()
 
 	clusterManagementURL, err := url.Parse(clusterManagementURL)
 	if err != nil {
@@ -643,7 +644,7 @@ func main() {
 
 			K8sConfig: &rest.Config{
 				Host:      apiServerEndpoint,
-				Transport: srv.K8sClient.Transport,
+				Transport: k8sClient.Transport,
 			},
 			Metrics: srv.AuthMetrics,
 		}
@@ -695,7 +696,7 @@ func main() {
 
 					K8sConfig: &rest.Config{
 						Host:      apiServerEndpoint,
-						Transport: srv.K8sClient.Transport,
+						Transport: k8sClient.Transport,
 					},
 					Metrics: srv.AuthMetrics,
 				}

@@ -17,13 +17,17 @@ import (
 
 type OperandsListHandler struct {
 	APIServerURL string
-	Client       *http.Client
+	GetK8sClient func() (*http.Client, error)
 }
 
 func (o *OperandsListHandler) GetConfig(user *auth.User) (*rest.Config, error) {
+	httpClient, err := o.GetK8sClient()
+	if err != nil {
+		return nil, err
+	}
 	config := &rest.Config{
 		Host:        o.APIServerURL,
-		Transport:   o.Client.Transport,
+		Transport:   httpClient.Transport,
 		BearerToken: user.Token,
 	}
 	return config, nil
