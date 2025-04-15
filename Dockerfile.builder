@@ -8,7 +8,18 @@
 # You can test the image using `./builder-run.sh`. For instance:
 #   $ ./builder-run.sh ./build-backend.sh
 
-FROM golang:1.23-bookworm
+FROM golang:1.22-bullseye
+
+# Define the desired Go version
+ENV GO_VERSION=1.23.0
+# Define the desired Go version
+RUN curl -LO https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
+    rm -rf /usr/local/go && \
+    tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
+    rm go${GO_VERSION}.linux-amd64.tar.gz
+
+# Ensure updated Go is in PATH
+ENV PATH="/usr/local/go/bin:${PATH}"
 
 ### For golang testing stuff
 RUN go install github.com/jstemmer/go-junit-report@latest
