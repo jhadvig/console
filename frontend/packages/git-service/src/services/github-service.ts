@@ -44,8 +44,14 @@ export class GithubService extends BaseService {
     super(gitsource);
     const authOpts = this.getAuthProvider();
     this.metadata = this.getRepoMetadata();
+    // Use the protocol from the URL, defaulting to https for ssh/git protocols
+    const parsedUrl = GitUrlParse(gitsource.url);
+    const urlProtocol =
+      parsedUrl.protocol === 'http' || parsedUrl.protocol === 'https'
+        ? parsedUrl.protocol
+        : 'https';
     const baseUrl =
-      this.metadata.host === 'github.com' ? null : `https://${this.metadata.host}/api/v3`;
+      this.metadata.host === 'github.com' ? null : `${urlProtocol}://${this.metadata.host}/api/v3`;
     this.client = new Octokit({ ...authOpts, baseUrl });
   }
 

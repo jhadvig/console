@@ -62,9 +62,12 @@ export class GiteaService extends BaseService {
   };
 
   getRepoMetadata = (): RepoMetadata => {
-    const { name, owner, resource, full_name: fullName } = GitUrlParse(this.gitsource.url);
+    const parsedUrl = GitUrlParse(this.gitsource.url);
+    const { name, owner, resource, full_name: fullName, protocol } = parsedUrl;
     const contextDir = this.gitsource.contextDir?.replace(/\/$/, '') || '';
-    const host = `https://${resource}`;
+    // Use the protocol from the URL, defaulting to https for ssh/git protocols
+    const urlProtocol = protocol === 'http' || protocol === 'https' ? protocol : 'https';
+    const host = `${urlProtocol}://${resource}`;
     return {
       repoName: name,
       owner,

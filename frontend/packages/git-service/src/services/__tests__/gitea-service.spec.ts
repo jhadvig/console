@@ -281,4 +281,30 @@ describe('Gitea Service', () => {
       nockDone();
     });
   });
+
+  it('should respect HTTP protocol for self-hosted Gitea', () => {
+    const gitSource: GitSource = {
+      url: 'http://gitea.example.com:8080/test/repo',
+    };
+
+    const gitService = new GiteaService(gitSource);
+    const metaData = gitService.getRepoMetadata();
+
+    expect(metaData.host).toEqual('http://gitea.example.com:8080');
+    expect(metaData.repoName).toEqual('repo');
+    expect(metaData.owner).toEqual('test');
+  });
+
+  it('should respect HTTPS protocol for self-hosted Gitea', () => {
+    const gitSource: GitSource = {
+      url: 'https://gitea.example.com/test/repo',
+    };
+
+    const gitService = new GiteaService(gitSource);
+    const metaData = gitService.getRepoMetadata();
+
+    expect(metaData.host).toEqual('https://gitea.example.com');
+    expect(metaData.repoName).toEqual('repo');
+    expect(metaData.owner).toEqual('test');
+  });
 });

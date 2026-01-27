@@ -324,4 +324,26 @@ describe('Github Service', () => {
       nockDone();
     });
   });
+
+  it('should respect HTTP protocol for self-hosted GitHub Enterprise', async () => {
+    const gitSource: GitSource = { url: 'http://github.example.com:8080/test/repo' };
+    const gitService = new GithubService(gitSource);
+
+    const scope = nock('http://github.example.com:8080/api/v3').get('/repos/test/repo').reply(200);
+
+    const status = await gitService.isRepoReachable();
+    expect(status).toEqual(RepoStatus.Reachable);
+    scope.done();
+  });
+
+  it('should respect HTTPS protocol for self-hosted GitHub Enterprise', async () => {
+    const gitSource: GitSource = { url: 'https://github.example.com/test/repo' };
+    const gitService = new GithubService(gitSource);
+
+    const scope = nock('https://github.example.com/api/v3').get('/repos/test/repo').reply(200);
+
+    const status = await gitService.isRepoReachable();
+    expect(status).toEqual(RepoStatus.Reachable);
+    scope.done();
+  });
 });

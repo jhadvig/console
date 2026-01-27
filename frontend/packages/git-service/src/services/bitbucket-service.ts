@@ -1,3 +1,4 @@
+import * as GitUrlParse from 'git-url-parse';
 import { Base64 } from 'js-base64';
 import * as ParseBitbucketUrl from 'parse-bitbucket-url';
 import { consoleFetchJSON } from '@console/dynamic-plugin-sdk/src/lib-core';
@@ -42,7 +43,14 @@ export class BitbucketService extends BaseService {
     super(gitsource);
     this.metadata = this.getRepoMetadata();
     if (this.metadata.host !== 'bitbucket.org') {
-      this.baseURL = `https://${this.metadata.host}/rest/api/1.0`;
+      // Use the protocol from the URL, defaulting to https for ssh/git protocols
+      // Bitbucket parser doesn't provide protocol, so we parse with GitUrlParse for protocol detection
+      const gitParsedUrl = GitUrlParse(gitsource.url);
+      const urlProtocol =
+        gitParsedUrl.protocol === 'http' || gitParsedUrl.protocol === 'https'
+          ? gitParsedUrl.protocol
+          : 'https';
+      this.baseURL = `${urlProtocol}://${this.metadata.host}/rest/api/1.0`;
       this.isServer = true;
     }
   }

@@ -294,4 +294,30 @@ describe('Bitbucket Service', () => {
       nockDone();
     });
   });
+
+  it('should respect HTTP protocol for self-hosted Bitbucket', () => {
+    const gitSource: GitSource = {
+      url: 'http://bitbucket.example.com:8080/test/repo',
+    };
+
+    const gitService = new BitbucketService(gitSource);
+    const metaData = gitService.getRepoMetadata();
+
+    expect(metaData.host).toEqual('bitbucket.example.com:8080');
+    // Verify that the baseURL uses HTTP
+    expect(gitService.baseURL).toEqual('http://bitbucket.example.com:8080/rest/api/1.0');
+  });
+
+  it('should respect HTTPS protocol for self-hosted Bitbucket', () => {
+    const gitSource: GitSource = {
+      url: 'https://bitbucket.example.com/test/repo',
+    };
+
+    const gitService = new BitbucketService(gitSource);
+    const metaData = gitService.getRepoMetadata();
+
+    expect(metaData.host).toEqual('bitbucket.example.com');
+    // Verify that the baseURL uses HTTPS
+    expect(gitService.baseURL).toEqual('https://bitbucket.example.com/rest/api/1.0');
+  });
 });

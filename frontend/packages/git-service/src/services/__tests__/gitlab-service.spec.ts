@@ -316,4 +316,24 @@ describe('Gitlab Service', () => {
     expect(status).toEqual(RepoStatus.Reachable);
     scope.done();
   });
+
+  it('should respect HTTP protocol for self-hosted GitLab', async () => {
+    const gitSource: GitSource = { url: 'http://gitlab.example.com:8080/test/repo' };
+    const gitService = new GitlabService(gitSource);
+
+    const metaData = gitService.getRepoMetadata();
+    expect(metaData.host).toEqual('http://gitlab.example.com:8080');
+    expect(metaData.repoName).toEqual('repo');
+    expect(metaData.owner).toEqual('test');
+  });
+
+  it('should respect HTTPS protocol for self-hosted GitLab', async () => {
+    const gitSource: GitSource = { url: 'https://gitlab.example.com/test/repo' };
+    const gitService = new GitlabService(gitSource);
+
+    const metaData = gitService.getRepoMetadata();
+    expect(metaData.host).toEqual('https://gitlab.example.com');
+    expect(metaData.repoName).toEqual('repo');
+    expect(metaData.owner).toEqual('test');
+  });
 });
