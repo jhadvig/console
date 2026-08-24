@@ -11,7 +11,10 @@ import (
 	"github.com/gorilla/securecookie"
 	gorilla "github.com/gorilla/sessions"
 	"golang.org/x/oauth2"
+	"k8s.io/klog/v2"
 )
+
+const maxCookieSize = 4000
 
 type CombinedSessionStore struct {
 	serverStore *SessionStore
@@ -89,9 +92,37 @@ func (cs *CombinedSessionStore) AddSession(w http.ResponseWriter, r *http.Reques
 
 	clientSession := cs.getCookieSession(r)
 	clientSession.sessionToken.Values["session-token"] = ls.sessionToken
-	clientSession.refreshToken.Values["refresh-token"] = ls.refreshToken
+	cs.setRefreshTokenCookie(clientSession, ls.refreshToken)
 
 	return ls, clientSession.save(r, w)
+}
+
+// setRefreshTokenCookie stores the refresh token in the cookie. If the token
+// fits within browser cookie size limits, the full token is stored to enable
+// session recovery after pod restarts. If the token is too large (e.g. ADFS
+// 6KB+ tokens), a small reference ID is stored instead — normal operation
+// works but session recovery after pod restart is not possible.
+func (cs *CombinedSessionStore) setRefreshTokenCookie(clientSession *session, refreshToken string) {
+	delete(clientSession.refreshToken.Values, "refresh-token")
+	delete(clientSession.refreshToken.Values, "refresh-token-id")
+
+	if refreshToken == "" {
+		return
+	}
+
+	encoded, err := securecookie.EncodeMulti(
+		openshiftRefreshTokenCookieName,
+		map[interface{}]interface{}{"refresh-token": refreshToken},
+		cs.clientStore.Codecs...)
+	if err == nil && len(encoded) <= maxCookieSize {
+		clientSession.refreshToken.Values["refresh-token"] = refreshToken
+		return
+	}
+
+	refID := RandomString(32)
+	cs.serverStore.byRefreshTokenID[refID] = refreshToken
+	clientSession.refreshToken.Values["refresh-token-id"] = refID
+	klog.V(4).Infof("refresh token too large for cookie (%d bytes encoded), using reference ID — session recovery after pod restart disabled", len(encoded))
 }
 
 func (cs *CombinedSessionStore) getCookieSession(r *http.Request) *session {
@@ -191,9 +222,7 @@ func (cs *CombinedSessionStore) UpdateTokens(w http.ResponseWriter, r *http.Requ
 
 	newRefreshToken := tokenResponse.RefreshToken
 
-	// Store actual refresh token in cookie
-	clientSession.refreshToken.Values["refresh-token"] = newRefreshToken
-	delete(clientSession.refreshToken.Values, "refresh-token-id")
+	cs.setRefreshTokenCookie(clientSession, newRefreshToken)
 
 	var loginState *LoginState
 	if sessionToken, ok := clientSession.sessionToken.Values["session-token"].(string); ok {

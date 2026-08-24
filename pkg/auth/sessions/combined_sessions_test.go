@@ -167,9 +167,21 @@ func TestCombinedSessionStore_AddSession(t *testing.T) {
 					refreshFound = true
 					gotRefresh := make(map[interface{}]interface{})
 					require.NoError(t, securecookie.DecodeMulti(openshiftRefreshTokenCookieName, c.Value, &gotRefresh, cookieCodecs...))
-					actualRefreshToken := gotRefresh["refresh-token"].(string)
-					if actualRefreshToken != tt.wantRefreshToken {
-						t.Errorf("wanted refresh token to be %q, got %q", tt.wantRefreshToken, actualRefreshToken)
+					if actualRefreshToken, ok := gotRefresh["refresh-token"].(string); ok {
+						if actualRefreshToken != tt.wantRefreshToken {
+							t.Errorf("wanted refresh token to be %q, got %q", tt.wantRefreshToken, actualRefreshToken)
+						}
+					} else if refID, ok := gotRefresh["refresh-token-id"].(string); ok {
+						// Large token fallback — verify the reference ID maps to the expected token
+						if actualToken, exists := cs.serverStore.byRefreshTokenID[refID]; exists {
+							if actualToken != tt.wantRefreshToken {
+								t.Errorf("wanted refresh token (via ref ID) to be %q, got %q", tt.wantRefreshToken, actualToken)
+							}
+						} else {
+							t.Errorf("refresh-token-id %q not found in server store", refID)
+						}
+					} else if tt.wantRefreshToken != "" {
+						t.Errorf("refresh cookie contained neither refresh-token nor refresh-token-id")
 					}
 				}
 			}
