@@ -473,6 +473,7 @@ func Test_oidcAuth_getLoginState(t *testing.T) {
 		initSessions       func(*sessions.CombinedSessionStore) string
 		wantUserUID        string
 		wantErr            bool
+		cookieOnly         bool // attach refresh token cookie without adding to server store
 	}{
 		{
 			name:    "no session, no refresh token",
@@ -516,6 +517,12 @@ func Test_oidcAuth_getLoginState(t *testing.T) {
 			cookieRefreshToken: testValidRefreshToken,
 			wantUserUID:        "testuser",
 		},
+		{
+			name:               "pod restart: empty server store, valid refresh token cookie recovers session",
+			cookieRefreshToken: testValidRefreshToken,
+			wantUserUID:        "testuser",
+			cookieOnly:         true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -541,7 +548,7 @@ func Test_oidcAuth_getLoginState(t *testing.T) {
 				tokenVerifier: oidcProvider.verifyIDToken,
 				signPayload:   oidcProvider.signPayload,
 			}
-			if len(tt.cookieRefreshToken) > 0 {
+			if len(tt.cookieRefreshToken) > 0 && !tt.cookieOnly {
 				testCookieFactory.WithRefreshToken(tt.cookieRefreshToken)
 			}
 
@@ -554,6 +561,17 @@ func Test_oidcAuth_getLoginState(t *testing.T) {
 
 			req := httptest.NewRequest("GET", "/", nil)
 			req = testCookieFactory.Complete(t, req)
+
+			// For cookieOnly, attach the refresh token cookie directly without
+			// populating the server store — simulates a pod restart where the
+			// browser still has cookies but the in-memory store is empty.
+			if tt.cookieOnly && len(tt.cookieRefreshToken) > 0 {
+				attachCookieOrDie(t, req, "openshift-refresh-token",
+					map[interface{}]interface{}{
+						"refresh-token": tt.cookieRefreshToken,
+					},
+					securecookie.CodecsFromPairs(authnKey, encryptionKey))
+			}
 
 			writer := httptest.NewRecorder()
 			got, err := o.getLoginState(writer, req)
