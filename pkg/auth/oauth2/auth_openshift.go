@@ -189,14 +189,11 @@ func (o *openShiftAuth) DeleteSession(w http.ResponseWriter, r *http.Request) {
 func (o *openShiftAuth) logout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Always clean up local state (session + recovery cookie) before writing the
-	// HTTP response.  This ensures the user is logged out of the console even when
-	// remote token revocation fails.  Set-Cookie headers must be added before
-	// WriteHeader / http.Error, otherwise Go's ResponseWriter silently drops them.
-	defer func() {
-		o.sessions.DeleteSession(w, r)
-		o.sessions.ClearRecoveryCookie(w, r)
-	}()
+	// Clear local state (session + recovery cookie) before any WriteHeader call.
+	// Set-Cookie headers must be added before WriteHeader, otherwise Go's
+	// ResponseWriter silently drops them.
+	o.sessions.DeleteSession(w, r)
+	o.sessions.ClearRecoveryCookie(w, r)
 
 	k8sURL, err := url.Parse(o.issuerURL)
 	if err != nil {
