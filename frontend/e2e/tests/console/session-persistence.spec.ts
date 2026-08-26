@@ -10,6 +10,19 @@ test.describe(
   () => {
     test.setTimeout(300_000);
 
+    // Session persistence requires the console-operator to create the session-secret
+    // Secret, which provides shared encryption keys across console pods. Without it,
+    // each pod generates random keys and cookies from a dead pod can't be decrypted.
+    // Skip these tests when the Secret doesn't exist (e.g. console-only CI jobs).
+    test.beforeEach(async ({ k8sClient }, testInfo) => {
+      const secret = await k8sClient.coreV1Api
+        .readNamespacedSecret({ name: 'session-secret', namespace: CONSOLE_NAMESPACE })
+        .catch(() => null);
+      if (!secret) {
+        testInfo.skip(true, 'session-secret not found — console-operator has not provisioned shared session keys');
+      }
+    });
+
     test('session survives console pod deletion', async ({ page, k8sClient }) => {
       const baseURL = process.env.WEB_CONSOLE_URL || 'http://localhost:9000';
 
