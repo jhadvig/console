@@ -1,5 +1,12 @@
 import type { K8sResourceCommon, QueryParams } from '@console/dynamic-plugin-sdk/src';
-import { k8sPatch, k8sKill, k8sList, k8sWatch } from '@console/dynamic-plugin-sdk/src/utils/k8s';
+import {
+  k8sPatch,
+  k8sKill,
+  k8sList,
+  k8sWatch,
+  resourceURL,
+} from '@console/dynamic-plugin-sdk/src/utils/k8s';
+import { coFetchJSON } from '@console/shared/src/utils/console-fetch';
 import type { K8sKind, Patch } from './types';
 
 export type Options = {
@@ -16,6 +23,33 @@ export const k8sPatchByName = (
   data: Patch[],
   opts: Options = {},
 ) => k8sPatch(kind, { metadata: { name, namespace } }, data, opts);
+
+export const k8sStrategicMergePatch = <R extends K8sResourceCommon>(
+  kind: K8sKind,
+  resource: R,
+  data: Record<string, unknown>,
+  opts: Options = {},
+): Promise<R> =>
+  coFetchJSON(
+    resourceURL(
+      kind,
+      Object.assign(
+        {
+          ns: resource.metadata.namespace,
+          name: resource.metadata.name,
+        },
+        opts,
+      ),
+    ),
+    'PATCH',
+    {
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/strategic-merge-patch+json;charset=UTF-8',
+      },
+      body: JSON.stringify(data),
+    },
+  );
 
 export const k8sKillByName = <R extends K8sResourceCommon>(
   kind: K8sKind,

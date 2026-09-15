@@ -123,3 +123,10 @@ export const LazyManagedResourceSaveModalOverlay = lazy(() =>
     default: m.ManagedResourceSaveModalOverlay,
   })),
 );
+
+// Lazy-loaded OverlayComponent for Ephemeral Debug Modal
+export const LazyEphemeralDebugModalOverlay = lazy(() =>
+  import('./ephemeral-debug-modal' /* webpackChunkName: "ephemeral-debug-modal" */).then((m) => ({
+    default: m.EphemeralDebugModalOverlay,
+  })),
+);

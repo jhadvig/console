@@ -721,6 +721,18 @@ const AppContents: FC = () => {
         }
       />
       <Route
+        path="/k8s/ns/:ns/pods/:podName/containers/:name/ephemeral-debug/:debugContainerName/*"
+        element={
+          <AsyncComponent
+            loader={() =>
+              import(
+                './ephemeral-debug-terminal' /* webpackChunkName: "ephemeral-debug-terminal" */
+              ).then((m) => m.EphemeralDebugTerminalPage)
+            }
+          />
+        }
+      />
+      <Route
         path="/k8s/ns/:ns/pods/:podName/containers/:name/*"
         element={
           <AsyncComponent

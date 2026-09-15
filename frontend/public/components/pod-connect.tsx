@@ -18,6 +18,8 @@ import { Base64 } from 'js-base64';
 import * as _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 import { getImpersonate } from '@console/dynamic-plugin-sdk';
+import { useAccessReview } from '@console/dynamic-plugin-sdk/src/app/components/utils/rbac';
+import { useOverlay } from '@console/dynamic-plugin-sdk/src/app/modal-support/useOverlay';
 import { FLAGS } from '@console/shared/src/constants/common';
 import { useConsoleDispatch } from '@console/shared/src/hooks/useConsoleDispatch';
 import { useFlag } from '@console/shared/src/hooks/useFlag';
@@ -35,6 +37,7 @@ import { resourceURL } from '../module/k8s';
 import { isWindowsPod } from '../module/k8s/pods';
 import { WSFactory } from '../module/ws-factory';
 import store from '../redux';
+import { LazyEphemeralDebugModalOverlay } from './modals';
 import type { ImperativeTerminalType } from './terminal';
 import { Terminal } from './terminal';
 import { ContainerLabel, ContainerSelect } from './utils/container-select';
@@ -75,6 +78,7 @@ export const PodConnect: FC<PodConnectProps> = ({
   const isOpenShift = useFlag(FLAGS.OPENSHIFT);
   const [fullscreenRef, toggleFullscreen, isFullscreen, canUseFullScreen] = useFullscreen();
   const dispatch = useConsoleDispatch();
+  const launchModal = useOverlay();
   const [detached, setDetached] = useState(false);
   const detachedRef = useRef(false);
   const detachedSessions = useDetachedSessions();
@@ -82,6 +86,7 @@ export const PodConnect: FC<PodConnectProps> = ({
 
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shellUnavailable, setShellUnavailable] = useState(false);
   const [activeContainer, setActiveContainer] = useState<string>(
     initialContainer ||
       obj.metadata?.annotations?.['kubectl.kubernetes.io/default-container'] ||
@@ -92,9 +97,26 @@ export const PodConnect: FC<PodConnectProps> = ({
 
   const podName = useMemo(() => obj.metadata?.name || '', [obj?.metadata?.name]);
   const namespace = useMemo(() => obj.metadata?.namespace || 'default', [obj?.metadata?.namespace]);
+  const [canDebugEphemeral, ephemeralAccessReviewLoading] = useAccessReview({
+    group: PodModel.apiGroup,
+    resource: PodModel.plural,
+    subresource: 'ephemeralcontainers',
+    verb: 'patch',
+    name: podName,
+    namespace,
+  });
   // We are being more specific with the dependency array here to avoid additional rerenders when other fields in obj changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const isWindows = useMemo(() => isWindowsPod(obj), [obj?.spec?.tolerations]);
+
+  const launchEphemeralDebug = useCallback(
+    () =>
+      launchModal(LazyEphemeralDebugModalOverlay, {
+        resource: obj,
+        initialContainer: activeContainer,
+      }),
+    [activeContainer, launchModal, obj],
+  );
 
   const connect = useCallback(() => {
     const usedClient = isOpenShift ? 'oc' : 'kubectl';
@@ -136,9 +158,11 @@ export const PodConnect: FC<PodConnectProps> = ({
         if (raw[0] === '3') {
           if (previous.includes(NO_SH)) {
             terminalRef.current?.reset();
+            setShellUnavailable(true);
+            setError(t("This container doesn't have a /bin/sh shell."));
             terminalRef.current?.onConnectionClosed(
               // eslint-disable-next-line no-restricted-globals
-              `This container doesn't have a /bin/sh shell. Try specifying your command in a terminal with:\r\n\r\n ${usedClient} -n ${namespace} exec ${name} -ti <command>`,
+              `This container doesn't have a /bin/sh shell. Try specifying your command in a terminal with:\r\n\r\n ${usedClient} -n ${namespace} exec ${podName} -ti <command>`,
             );
             wsRef.current.destroy();
             previous = '';
@@ -154,6 +178,7 @@ export const PodConnect: FC<PodConnectProps> = ({
         previous = '';
         setOpen(true);
         setError(null);
+        setShellUnavailable(false);
       })
       .onclose((evt: any) => {
         if (!evt || evt.wasClean === true) {
@@ -245,8 +270,13 @@ export const PodConnect: FC<PodConnectProps> = ({
   }
 
   const reconnectAction =
-    obj.status.phase === 'Running' ? (
+    obj.status.phase === 'Running' && !shellUnavailable ? (
       <AlertActionLink onClick={connect}>{t('Reconnect')}</AlertActionLink>
+    ) : null;
+
+  const ephemeralDebugAction =
+    shellUnavailable && !ephemeralAccessReviewLoading && canDebugEphemeral ? (
+      <AlertActionLink onClick={launchEphemeralDebug}>{t('Debug container')}</AlertActionLink>
     ) : null;
 
   return (
@@ -314,10 +344,18 @@ export const PodConnect: FC<PodConnectProps> = ({
           <Alert
             variant="warning"
             title={error}
-            actionLinks={reconnectAction}
+            actionLinks={shellUnavailable ? ephemeralDebugAction : reconnectAction}
             isInline
             className="pf-v6-u-mb-md"
-          />
+          >
+            {shellUnavailable ? (
+              <p>
+                {t(
+                  'Add an ephemeral debug container to this running pod to troubleshoot images without a shell.',
+                )}
+              </p>
+            ) : null}
+          </Alert>
         )}
         {message}
       </div>
